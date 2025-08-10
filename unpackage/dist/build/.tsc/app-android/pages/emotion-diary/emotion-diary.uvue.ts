@@ -1,0 +1,362 @@
+import { ref, computed, onUnmounted, onMounted } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
+
+
+const __sfc__ = defineComponent({
+  __name: 'emotion-diary',
+  setup(__props): any | null {
+const __ins = getCurrentInstance()!;
+const _ctx = __ins.proxy as InstanceType<typeof __sfc__>;
+const _cache = __ins.renderCache;
+
+const diaryContent = ref('');
+const emotionRating = ref(0); // 1-5 scale
+const diaryEntries = ref<Array<{ id: number; date: string; content: string; rating: number }>>([]);
+const userQuery = ref('');
+const chatMessages = ref<Array<{ id: number; role: 'user' | 'ai'; text: string }>>([]);
+
+const ratingText = computed(() => {
+  if (emotionRating.value === 0) return '请选择心情评分';
+  const texts = ['非常差', '有点差', '一般', '比较好', '非常好'];
+  return texts[emotionRating.value - 1];
+});
+
+// Computed property to sort entries by date, newest first
+const sortedDiaryEntries = computed(() => {
+  return [...diaryEntries.value].sort((a, b) => new Date(b.date) - new Date(a.date));
+});
+
+onLoad(() => {
+  console.log('Emotion Diary Page: onLoad triggered.');
+  loadDiaryEntries();
+});
+
+onMounted(() => {
+  console.log('Emotion Diary Page: onMounted triggered.');
+  // Chart rendering should ideally be triggered after diary entries are loaded
+  // For now, it's called here, but loadDiaryEntries will also trigger AI analysis.
+  renderChart();
+});
+
+function selectRating(rating) {
+  emotionRating.value = rating;
+  console.log(`Selected rating: ${rating}`);
+}
+
+async function saveDiaryEntry() {
+  if (!diaryContent.value || emotionRating.value === 0) {
+    uni.showToast({
+      title: '请填写日记内容并选择心情评分',
+      icon: 'none',
+      duration: 2000
+    });
+    return;
+  }
+
+  const entry = {
+    id: Date.now(),
+    date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    content: diaryContent.value,
+    rating: emotionRating.value
+  };
+
+  try {
+    // Retrieve existing entries or initialize empty array
+    let existingEntries = [];
+    try {
+      const res = await uni.getStorage({
+        key: 'emotionDiaryEntries'
+      });
+      if (res.data) {
+        existingEntries = JSON.parse(res.data);
+      }
+    } catch (e) {
+      console.log('No existing emotion diary entries found.');
+    }
+    
+    existingEntries.push(entry);
+
+    await uni.setStorage({
+      key: 'emotionDiaryEntries',
+      data: JSON.stringify(existingEntries)
+    });
+
+    console.log('日记已保存:', entry);
+    uni.showToast({
+      title: '日记保存成功！',
+      icon: 'success',
+      duration: 2000
+    });
+
+    // Clear form
+    diaryContent.value = '';
+    emotionRating.value = 0;
+    
+    // Reload entries and render chart after saving
+    loadDiaryEntries();
+
+  } catch (error) {
+    console.error('日记保存失败:', error);
+    uni.showToast({
+      title: '日记保存失败',
+      icon: 'error',
+      duration: 2000
+    });
+  }
+}
+
+async function loadDiaryEntries() {
+  try {
+    const res = await uni.getStorage({
+      key: 'emotionDiaryEntries'
+    });
+    if (res.data) {
+      diaryEntries.value = JSON.parse(res.data);
+      console.log('Loaded diary entries:', diaryEntries.value);
+      // After loading, initiate AI analysis and render chart
+      triggerAIAnalysis(); 
+      renderChart(); // Ensure chart is rendered after data is loaded
+    }
+  } catch (e) {
+    console.log('No emotion diary entries found.');
+    diaryEntries.value = [];
+    chatMessages.value = []; // Clear chat if no entries
+    triggerAIAnalysis(); // Still trigger AI to show 'no entries' message
+  }
+}
+
+function renderChart() {
+  // This is a placeholder function for charting.
+  // You would typically use a Uni-App compatible charting library here (e.g., ucharts).
+  console.log('Chart rendering logic would go here.');
+  // Example data for chart (replace with actual processed diaryEntries data)
+  const chartData = {
+    categories: [], // Dates
+    series: [{
+      name: '心情评分',
+      data: [] // Emotion ratings
+    }]
+  };
+
+  // Process diary entries for chart (example: last 7 days)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  
+  const recentEntries = diaryEntries.value.filter(entry => new Date(entry.date) >= sevenDaysAgo)
+                                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  recentEntries.forEach(entry => {
+    chartData.categories.push(entry.date);
+    chartData.series[0].data.push(entry.rating);
+  });
+
+  if (chartData.categories.length > 0) {
+    console.log('Chart data prepared:', chartData);
+    // uni.createCanvasContext('emotionChart', this); // This line is for ucharts or similar
+    // Call your charting library's render function here
+  }
+}
+
+async function triggerAIAnalysis() {
+  if (diaryEntries.value.length === 0) {
+    chatMessages.value.push({
+      id: Date.now(),
+      role: 'ai',
+      text: '您还没有记录任何日记，快去写下第一篇日记吧！'
+    });
+    return;
+  }
+
+  // Simulate AI analysis based on recent entries
+  const recentRatings = diaryEntries.value.slice(-7).map(entry => entry.rating); // Last 7 ratings
+  const averageRating = recentRatings.reduce((sum, r) => sum + r, 0) / recentRatings.length;
+
+  let aiResponse = '根据您最近的心情记录，';
+  if (averageRating >= 4) {
+    aiResponse += '您的情绪状况非常好，请继续保持积极乐观的心态！';
+  } else if (averageRating >= 3) {
+    aiResponse += '您的情绪状况总体良好，可以尝试更多积极的活动来提升心情。';
+  } else if (averageRating >= 2) {
+    aiResponse += '您的情绪状况近期可能有些波动，请多关注自己的感受，尝试放松练习或与朋友交流。'
+  } else {
+    aiResponse += '您的情绪状况可能有些低落，请不要独自承受，可以尝试深呼吸练习或寻求专业帮助。';
+  }
+
+  chatMessages.value.push({
+    id: Date.now() + 1,
+    role: 'ai',
+    text: aiResponse
+  });
+}
+
+async function sendToAI() {
+  if (!userQuery.value.trim()) return;
+
+  const userText = userQuery.value.trim();
+  chatMessages.value.push({
+    id: Date.now(),
+    role: 'user',
+    text: userText
+  });
+  userQuery.value = ''; // Clear input
+
+  // Simulate AI response (replace with actual LLM integration)
+  const aiResponse = `您好！您刚才提到了：“${userText}”。我是一个AI助手，目前还无法直接连接到大型语言模型进行实时对话。但是，我很乐意为您提供一些通用的鼓励或建议。`;
+  chatMessages.value.push({
+    id: Date.now() + 1,
+    role: 'ai',
+    text: aiResponse
+  });
+  // In a real scenario, you'd call an API here:
+  // const llmResponse = await request.chatWithLLM(userText, diaryEntries.value);
+  // chatMessages.value.push({ id: Date.now() + 2, role: 'ai', text: llmResponse });
+}
+
+function exitEmotionDiary() {
+  console.log('Exit Emotion Diary button clicked. Switching tab to pages/pages3/pages3');
+  uni.switchTab({
+    url: '/pages/pages3/pages3'
+  });
+}
+
+onUnmounted(() => {
+  console.log('onUnmounted called for Emotion Diary page');
+});
+
+return (): any | null => {
+
+const _component_uni_icons = resolveComponent("uni-icons")
+
+  return createElementVNode("view", utsMapOf({ class: "container" }), [
+    createElementVNode("view", utsMapOf({ class: "header" }), [
+      createElementVNode("text", utsMapOf({ class: "title" }), "情绪日记"),
+      createElementVNode("text", utsMapOf({ class: "subtitle" }), "记录您的心情和烦恼")
+    ]),
+    createElementVNode("view", utsMapOf({ class: "diary-card animate-fade-in" }), [
+      createElementVNode("text", utsMapOf({ class: "card-title" }), "今天您感觉如何？"),
+      createElementVNode("view", utsMapOf({ class: "emotion-rating" }), [
+        createElementVNode(Fragment, null, RenderHelpers.renderList(5, (n, __key, __index, _cached): any => {
+          return createElementVNode("view", utsMapOf({
+            key: n,
+            class: normalizeClass(['rating-star', utsMapOf({ 'selected': emotionRating.value >= n })]),
+            onClick: () => {selectRating(n)}
+          }), toDisplayString(n), 11 /* TEXT, CLASS, PROPS */, ["onClick"])
+        }), 64 /* STABLE_FRAGMENT */)
+      ]),
+      createElementVNode("text", utsMapOf({ class: "rating-label" }), toDisplayString(ratingText.value), 1 /* TEXT */),
+      createElementVNode("text", utsMapOf({ class: "card-title" }), "写下您的烦心事："),
+      createElementVNode("textarea", utsMapOf({
+        class: "diary-textarea",
+        placeholder: "今天有什么让您烦恼的事情吗？或者想分享一些开心的事？",
+        modelValue: diaryContent.value,
+        onInput: ($event: InputEvent) => {(diaryContent).value = $event.detail.value},
+        maxlength: "-1"
+      }), null, 40 /* PROPS, NEED_HYDRATION */, ["modelValue", "onInput"]),
+      createElementVNode("button", utsMapOf({
+        class: "save-button",
+        onClick: saveDiaryEntry
+      }), [
+        createVNode(_component_uni_icons, utsMapOf({
+          type: "upload-filled",
+          size: "24",
+          color: "#fff"
+        })),
+        createElementVNode("text", null, "保存日记")
+      ])
+    ]),
+    createElementVNode("view", utsMapOf({ class: "chart-card animate-fade-in" }), [
+      createElementVNode("text", utsMapOf({ class: "card-title" }), "近七天情绪趋势"),
+      createElementVNode("view", utsMapOf({ class: "chart-placeholder" }), [
+        createElementVNode("text", null, "情绪趋势图表"),
+        createElementVNode("canvas", utsMapOf({
+          "canvas-id": "emotionChart",
+          id: "emotionChart",
+          class: "charts"
+        }))
+      ])
+    ]),
+    createElementVNode("view", utsMapOf({ class: "diary-list-card animate-fade-in" }), [
+      createElementVNode("text", utsMapOf({ class: "card-title" }), "过往日记"),
+      createElementVNode("scroll-view", utsMapOf({
+        "scroll-y": "",
+        class: "diary-scroll-view"
+      }), [
+        createElementVNode(Fragment, null, RenderHelpers.renderList(sortedDiaryEntries.value, (entry, __key, __index, _cached): any => {
+          return createElementVNode("view", utsMapOf({
+            key: entry.id,
+            class: "diary-entry"
+          }), [
+            createElementVNode("view", utsMapOf({ class: "entry-header" }), [
+              createElementVNode("text", utsMapOf({ class: "entry-date" }), toDisplayString(entry.date), 1 /* TEXT */),
+              createElementVNode("text", utsMapOf({ class: "entry-rating" }), "心情评分: " + toDisplayString(entry.rating) + " / 5", 1 /* TEXT */)
+            ]),
+            createElementVNode("text", utsMapOf({ class: "entry-content" }), toDisplayString(entry.content), 1 /* TEXT */)
+          ])
+        }), 128 /* KEYED_FRAGMENT */),
+        sortedDiaryEntries.value.length === 0
+          ? createElementVNode("view", utsMapOf({
+              key: 0,
+              class: "no-entries"
+            }), [
+              createElementVNode("text", null, "暂无日记记录。")
+            ])
+          : createCommentVNode("v-if", true)
+      ])
+    ]),
+    createElementVNode("view", utsMapOf({ class: "ai-chat-card animate-fade-in" }), [
+      createElementVNode("text", utsMapOf({ class: "card-title" }), "AI 情绪分析与鼓励"),
+      createElementVNode("view", utsMapOf({ class: "chat-display" }), [
+        createElementVNode("scroll-view", utsMapOf({
+          "scroll-y": "",
+          class: "chat-scroll-view"
+        }), [
+          createElementVNode(Fragment, null, RenderHelpers.renderList(chatMessages.value, (message, __key, __index, _cached): any => {
+            return createElementVNode("view", utsMapOf({
+              key: message.id,
+              class: normalizeClass(['chat-message', message.role])
+            }), [
+              createElementVNode("text", null, toDisplayString(message.text), 1 /* TEXT */)
+            ], 2 /* CLASS */)
+          }), 128 /* KEYED_FRAGMENT */)
+        ])
+      ]),
+      createElementVNode("view", utsMapOf({ class: "chat-input-area" }), [
+        createElementVNode("input", utsMapOf({
+          class: "chat-input",
+          modelValue: userQuery.value,
+          onInput: ($event: InputEvent) => {(userQuery).value = $event.detail.value},
+          placeholder: "想和AI聊聊最近的情绪吗？",
+          onConfirm: sendToAI
+        }), null, 40 /* PROPS, NEED_HYDRATION */, ["modelValue", "onInput"]),
+        createElementVNode("button", utsMapOf({
+          class: "send-button",
+          onClick: sendToAI
+        }), [
+          createVNode(_component_uni_icons, utsMapOf({
+            type: "paperplane-filled",
+            size: "24",
+            color: "#fff"
+          }))
+        ])
+      ])
+    ]),
+    createElementVNode("view", utsMapOf({ class: "control-buttons" }), [
+      createElementVNode("button", utsMapOf({
+        class: "control-button exit-button",
+        onClick: exitEmotionDiary
+      }), [
+        createVNode(_component_uni_icons, utsMapOf({
+          type: "undo-alt",
+          size: "24",
+          color: "#fff"
+        })),
+        createElementVNode("text", null, "退出")
+      ])
+    ])
+  ])
+}
+}
+
+})
+export default __sfc__
+const GenPagesEmotionDiaryEmotionDiaryStyles = [utsMapOf([["container", padStyleMapOf(utsMapOf([["backgroundColor", "#03020d"], ["backgroundSize", "4px 4px,\n    400% 400%"], ["animation", "gradient-bg 15s ease infinite"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["paddingTop", "40rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "30rpx"], ["boxSizing", "border-box"], ["position", "relative"], ["overflow", "hidden"], ["content::before", "''"], ["position::before", "absolute"], ["top::before", 0], ["left::before", 0], ["right::before", 0], ["bottom::before", 0], ["animation::before", "pulse-bg 15s ease-in-out infinite alternate"], ["zIndex::before", 0]]))], ["particles", padStyleMapOf(utsMapOf([["position", "absolute"], ["top", 0], ["left", 0], ["width", "100%"], ["height", "100%"], ["overflow", "hidden"], ["zIndex", 2]]))], ["particle", padStyleMapOf(utsMapOf([["position", "absolute"], ["width", "4rpx"], ["height", "4rpx"], ["backgroundColor", "rgba(255,255,255,0.8)"], ["animation", "float-particle 15s linear infinite"], ["boxShadow", "0 0 5rpx rgba(255, 255, 255, 0.8)"]]))], ["header", padStyleMapOf(utsMapOf([["width", "100%"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"], ["marginBottom", "40rpx"], ["display", "flex"], ["flexDirection", "column"], ["justifyContent", "center"], ["alignItems", "center"], ["position", "relative"], ["zIndex", 1]]))], ["title", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "60rpx"], ["fontWeight", "bold"], ["textAlign", "center"], ["textShadow", "0 5rpx 10rpx rgba(0, 0, 0, 0.6)"], ["marginBottom", "20rpx"], ["letterSpacing", "3rpx"]]))], ["subtitle", padStyleMapOf(utsMapOf([["color", "#c0c0c0"], ["fontSize", "36rpx"], ["textAlign", "center"], ["textShadow", "0 1rpx 4rpx rgba(0, 0, 0, 0.4)"]]))], ["diary-card", padStyleMapOf(utsMapOf([["backgroundColor", "rgba(255,255,255,0.1)"], ["borderTopLeftRadius", "30rpx"], ["borderTopRightRadius", "30rpx"], ["borderBottomRightRadius", "30rpx"], ["borderBottomLeftRadius", "30rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["width", "90%"], ["maxWidth", "600rpx"], ["boxShadow", "0 0 50rpx rgba(79, 0, 188, 0.5)"], ["zIndex", 1], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["marginBottom", "40rpx"]]))], ["chart-card", padStyleMapOf(utsMapOf([["backgroundColor", "rgba(255,255,255,0.1)"], ["borderTopLeftRadius", "30rpx"], ["borderTopRightRadius", "30rpx"], ["borderBottomRightRadius", "30rpx"], ["borderBottomLeftRadius", "30rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["width", "90%"], ["maxWidth", "600rpx"], ["boxShadow", "0 0 50rpx rgba(79, 0, 188, 0.5)"], ["zIndex", 1], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["marginBottom", "40rpx"]]))], ["diary-list-card", padStyleMapOf(utsMapOf([["backgroundColor", "rgba(255,255,255,0.1)"], ["borderTopLeftRadius", "30rpx"], ["borderTopRightRadius", "30rpx"], ["borderBottomRightRadius", "30rpx"], ["borderBottomLeftRadius", "30rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["width", "90%"], ["maxWidth", "600rpx"], ["boxShadow", "0 0 50rpx rgba(79, 0, 188, 0.5)"], ["zIndex", 1], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["marginBottom", "40rpx"]]))], ["ai-chat-card", padStyleMapOf(utsMapOf([["backgroundColor", "rgba(255,255,255,0.1)"], ["borderTopLeftRadius", "30rpx"], ["borderTopRightRadius", "30rpx"], ["borderBottomRightRadius", "30rpx"], ["borderBottomLeftRadius", "30rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["width", "90%"], ["maxWidth", "600rpx"], ["boxShadow", "0 0 50rpx rgba(79, 0, 188, 0.5)"], ["zIndex", 1], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["marginBottom", "40rpx"]]))], ["card-title", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "36rpx"], ["fontWeight", "bold"], ["marginBottom", "30rpx"], ["textAlign", "center"]]))], ["emotion-rating", padStyleMapOf(utsMapOf([["display", "flex"], ["gap", "20rpx"], ["marginBottom", "30rpx"]]))], ["rating-star", utsMapOf([["", utsMapOf([["width", "80rpx"], ["height", "80rpx"], ["backgroundColor", "rgba(255,255,255,0.2)"], ["color", "#FFFFFF"], ["fontSize", "36rpx"], ["display", "flex"], ["justifyContent", "center"], ["alignItems", "center"], ["cursor", "pointer"], ["backgroundColor:hover", "rgba(255,255,255,0.4)"]])], [".selected", utsMapOf([["backgroundColor", "#4CAF50"], ["transform", "scale(1.1)"], ["boxShadow", "0 0 15rpx rgba(76, 175, 80, 0.8)"]])]])], ["rating-label", padStyleMapOf(utsMapOf([["color", "#e0e0e0"], ["fontSize", "28rpx"], ["marginBottom", "40rpx"]]))], ["diary-textarea", padStyleMapOf(utsMapOf([["height", "250rpx"], ["backgroundColor", "rgba(255,255,255,0.1)"], ["borderTopLeftRadius", "20rpx"], ["borderTopRightRadius", "20rpx"], ["borderBottomRightRadius", "20rpx"], ["borderBottomLeftRadius", "20rpx"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"], ["color", "#FFFFFF"], ["fontSize", "28rpx"], ["lineHeight", 1.5], ["marginBottom", "40rpx"], ["boxSizing", "border-box"], ["borderTopWidth", "2rpx"], ["borderRightWidth", "2rpx"], ["borderBottomWidth", "2rpx"], ["borderLeftWidth", "2rpx"], ["borderTopStyle", "solid"], ["borderRightStyle", "solid"], ["borderBottomStyle", "solid"], ["borderLeftStyle", "solid"], ["borderTopColor", "rgba(255,255,255,0.2)"], ["borderRightColor", "rgba(255,255,255,0.2)"], ["borderBottomColor", "rgba(255,255,255,0.2)"], ["borderLeftColor", "rgba(255,255,255,0.2)"]]))], ["save-button", padStyleMapOf(utsMapOf([["backgroundImage", "linear-gradient(145deg, #4CAF50, #8bc34a)"], ["backgroundColor", "rgba(0,0,0,0)"], ["color", "#FFFFFF"], ["paddingTop", "25rpx"], ["paddingRight", "50rpx"], ["paddingBottom", "25rpx"], ["paddingLeft", "50rpx"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["fontSize", "32rpx"], ["display", "flex"], ["alignItems", "center"], ["gap", "15rpx"], ["boxShadow", "0 8rpx 20rpx rgba(0, 0, 0, 0.4), inset 0 0 8rpx rgba(255, 255, 255, 0.2)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"], ["borderTopWidth", "medium"], ["borderRightWidth", "medium"], ["borderBottomWidth", "medium"], ["borderLeftWidth", "medium"], ["borderTopStyle", "none"], ["borderRightStyle", "none"], ["borderBottomStyle", "none"], ["borderLeftStyle", "none"], ["borderTopColor", "#000000"], ["borderRightColor", "#000000"], ["borderBottomColor", "#000000"], ["borderLeftColor", "#000000"], ["outline", "none"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 4rpx 10rpx rgba(0, 0, 0, 0.5), inset 0 0 4rpx rgba(0, 0, 0, 0.3)"], ["opacity:active", 0.9]]))], ["chart-placeholder", padStyleMapOf(utsMapOf([["width", "100%"], ["height", "400rpx"], ["backgroundColor", "rgba(255,255,255,0.05)"], ["borderTopLeftRadius", "20rpx"], ["borderTopRightRadius", "20rpx"], ["borderBottomRightRadius", "20rpx"], ["borderBottomLeftRadius", "20rpx"], ["display", "flex"], ["justifyContent", "center"], ["alignItems", "center"], ["color", "#cccccc"], ["fontSize", "28rpx"], ["marginBottom", "30rpx"]]))], ["charts", padStyleMapOf(utsMapOf([["width", "100%"], ["height", "100%"]]))], ["diary-scroll-view", padStyleMapOf(utsMapOf([["width", "100%"], ["maxHeight", "400rpx"], ["overflowY", "auto"]]))], ["diary-entry", padStyleMapOf(utsMapOf([["backgroundColor", "rgba(255,255,255,0.15)"], ["borderTopLeftRadius", "20rpx"], ["borderTopRightRadius", "20rpx"], ["borderBottomRightRadius", "20rpx"], ["borderBottomLeftRadius", "20rpx"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"], ["marginBottom", "20rpx"]]))], ["entry-header", padStyleMapOf(utsMapOf([["display", "flex"], ["justifyContent", "space-between"], ["marginBottom", "10rpx"]]))], ["entry-date", padStyleMapOf(utsMapOf([["color", "#e0e0e0"], ["fontSize", "24rpx"]]))], ["entry-rating", padStyleMapOf(utsMapOf([["color", "#4CAF50"], ["fontSize", "24rpx"], ["fontWeight", "bold"]]))], ["entry-content", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "28rpx"], ["lineHeight", 1.5]]))], ["no-entries", padStyleMapOf(utsMapOf([["color", "#cccccc"], ["fontSize", "28rpx"], ["textAlign", "center"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"]]))], ["chat-display", padStyleMapOf(utsMapOf([["width", "100%"], ["backgroundColor", "rgba(255,255,255,0.05)"], ["borderTopLeftRadius", "20rpx"], ["borderTopRightRadius", "20rpx"], ["borderBottomRightRadius", "20rpx"], ["borderBottomLeftRadius", "20rpx"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"], ["marginBottom", "20rpx"], ["maxHeight", "300rpx"], ["overflowY", "auto"]]))], ["chat-message", utsMapOf([["", utsMapOf([["marginBottom", "15rpx"], ["display", "flex"], ["flexDirection", "column"]])], [".user", utsMapOf([["alignItems", "flex-end"]])], [".ai", utsMapOf([["alignItems", "flex-start"]])]])], ["chat-input-area", padStyleMapOf(utsMapOf([["width", "100%"], ["display", "flex"], ["gap", "20rpx"], ["marginTop", "20rpx"]]))], ["chat-input", padStyleMapOf(utsMapOf([["flex", 1], ["backgroundColor", "rgba(255,255,255,0.1)"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["paddingTop", "15rpx"], ["paddingRight", "25rpx"], ["paddingBottom", "15rpx"], ["paddingLeft", "25rpx"], ["color", "#FFFFFF"], ["fontSize", "28rpx"], ["borderTopWidth", "2rpx"], ["borderRightWidth", "2rpx"], ["borderBottomWidth", "2rpx"], ["borderLeftWidth", "2rpx"], ["borderTopStyle", "solid"], ["borderRightStyle", "solid"], ["borderBottomStyle", "solid"], ["borderLeftStyle", "solid"], ["borderTopColor", "rgba(255,255,255,0.2)"], ["borderRightColor", "rgba(255,255,255,0.2)"], ["borderBottomColor", "rgba(255,255,255,0.2)"], ["borderLeftColor", "rgba(255,255,255,0.2)"]]))], ["send-button", padStyleMapOf(utsMapOf([["backgroundImage", "linear-gradient(145deg, #12c2e9, #4CAF50)"], ["backgroundColor", "rgba(0,0,0,0)"], ["color", "#FFFFFF"], ["paddingTop", "15rpx"], ["paddingRight", "25rpx"], ["paddingBottom", "15rpx"], ["paddingLeft", "25rpx"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["display", "flex"], ["alignItems", "center"], ["gap", "10rpx"], ["boxShadow", "0 4rpx 10rpx rgba(0, 0, 0, 0.3)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"], ["borderTopWidth", "medium"], ["borderRightWidth", "medium"], ["borderBottomWidth", "medium"], ["borderLeftWidth", "medium"], ["borderTopStyle", "none"], ["borderRightStyle", "none"], ["borderBottomStyle", "none"], ["borderLeftStyle", "none"], ["borderTopColor", "#000000"], ["borderRightColor", "#000000"], ["borderBottomColor", "#000000"], ["borderLeftColor", "#000000"], ["outline", "none"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 2rpx 5rpx rgba(0, 0, 0, 0.4)"], ["opacity:active", 0.9]]))], ["control-buttons", padStyleMapOf(utsMapOf([["marginTop", "60rpx"], ["display", "flex"], ["gap", "60rpx"], ["zIndex", 1]]))], ["control-button", utsMapOf([["", utsMapOf([["backgroundImage", "linear-gradient(145deg, #5e00d9, #8c6fe8)"], ["backgroundColor", "rgba(0,0,0,0)"], ["color", "#FFFFFF"], ["paddingTop", "30rpx"], ["paddingRight", "60rpx"], ["paddingBottom", "30rpx"], ["paddingLeft", "60rpx"], ["borderTopLeftRadius", "30rpx"], ["borderTopRightRadius", "30rpx"], ["borderBottomRightRadius", "30rpx"], ["borderBottomLeftRadius", "30rpx"], ["fontSize", "36rpx"], ["display", "flex"], ["alignItems", "center"], ["gap", "20rpx"], ["boxShadow", "0 10rpx 25rpx rgba(0, 0, 0, 0.5), inset 0 0 10rpx rgba(255, 255, 255, 0.2)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"], ["borderTopWidth", "medium"], ["borderRightWidth", "medium"], ["borderBottomWidth", "medium"], ["borderLeftWidth", "medium"], ["borderTopStyle", "none"], ["borderRightStyle", "none"], ["borderBottomStyle", "none"], ["borderLeftStyle", "none"], ["borderTopColor", "#000000"], ["borderRightColor", "#000000"], ["borderBottomColor", "#000000"], ["borderLeftColor", "#000000"], ["outline", "none"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 5rpx 15rpx rgba(0, 0, 0, 0.6), inset 0 0 5rpx rgba(0, 0, 0, 0.3)"], ["opacity:active", 0.9]])], [".exit-button", utsMapOf([["backgroundImage", "linear-gradient(145deg, #a0a0a0, #cccccc)"], ["backgroundColor", "rgba(0,0,0,0)"]])]])], ["animate-fade-in", padStyleMapOf(utsMapOf([["animation", "fade-in 0.8s ease-out forwards"]]))], ["@FONT-FACE", utsMapOf([["0", utsMapOf([])], ["1", utsMapOf([])], ["2", utsMapOf([])], ["3", utsMapOf([])], ["4", utsMapOf([])]])], ["@TRANSITION", utsMapOf([["save-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"]])], ["send-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"]])], ["control-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"]])]])]])]

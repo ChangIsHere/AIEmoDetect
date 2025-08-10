@@ -1,0 +1,236 @@
+@import "../../uvue.wxss";
+:host{display:flex;flex-direction:column}
+
+.container {
+	height: 100vh;
+	background-color: #050410;
+	background-image: linear-gradient(-45deg, #4f00bc, #7d1b7e, #0f0c29, #2a0845, #12c2e9);
+	background-size: 400% 400%;
+	animation: gradient-bg 12s ease infinite;
+	padding: 60rpx 40rpx;
+	box-sizing: border-box;
+	position: relative;
+}
+@keyframes gradient-bg {
+0% { background-position: 0% 50%;
+}
+50% { background-position: 100% 50%;
+}
+100% { background-position: 0% 50%;
+}
+}
+.back-button {
+	position: absolute;
+	top: 60rpx;
+	left: 30rpx;
+	display: flex;
+	align-items: center;
+	padding: 10rpx;
+	z-index: 10;
+}
+.back-icon {
+	font-size: 36rpx;
+	color: #ffffff;
+	margin-right: 10rpx;
+}
+.back-text {
+	font-size: 30rpx;
+	color: #ffffff;
+}
+.header {
+	margin-top: 40rpx;
+	text-align: center;
+}
+.title {
+	font-size: 48rpx;
+	color: #ffffff;
+	font-weight: bold;
+}
+.main-content {
+	margin-top: 60rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	height: calc(100vh - 200rpx);
+	overflow-y: auto;
+}
+
+/* 结果摘要样式 */
+.result-summary {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 40rpx;
+}
+.emotion-icon {
+	width: 150rpx;
+	height: 150rpx;
+	border-radius: 75rpx;
+	background: rgba(255, 255, 255, 0.95);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-bottom: 20rpx;
+	box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.2);
+}
+.emotion-icon.happy {
+	background: linear-gradient(135deg, #32CD32, #7FFF00);
+}
+.emotion-icon.sad {
+	background: linear-gradient(135deg, #4682B4, #6495ED);
+}
+.emotion-icon.angry {
+	background: linear-gradient(135deg, #FF6347, #FF4500);
+}
+.emotion-icon.anxious {
+	background: linear-gradient(135deg, #FFA500, #FFD700);
+}
+.emotion-icon.neutral {
+	background: linear-gradient(135deg, #9370DB, #8A2BE2);
+}
+.emoji {
+	font-size: 80rpx;
+}
+.emotion-label {
+	font-size: 40rpx;
+	color: #ffffff;
+	font-weight: bold;
+}
+
+/* 评分卡片样式 */
+.score-card {
+	width: 90%;
+	background: rgba(255, 255, 255, 0.9);
+	border-radius: 20rpx;
+	padding: 30rpx;
+	margin-bottom: 30rpx;
+	box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+.score-title {
+	font-size: 32rpx;
+	color: #333;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+}
+.score-container {
+	display: flex;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+.score-number {
+	font-size: 60rpx;
+	color: #6847c2;
+	font-weight: bold;
+	width: 120rpx;
+}
+.score-bar {
+	flex: 1;
+	height: 30rpx;
+	background: #f0f0f0;
+	border-radius: 15rpx;
+	overflow: hidden;
+}
+.score-progress {
+	height: 100%;
+	border-radius: 15rpx;
+	transition: width 1s ease;
+}
+.score-labels {
+	display: flex;
+	justify-content: space-between;
+	padding: 0 10rpx;
+}
+.low-label, .mid-label, .high-label {
+	font-size: 24rpx;
+	color: #666;
+}
+
+/* 详情卡片样式 */
+.details-card {
+	width: 90%;
+	background: rgba(255, 255, 255, 0.9);
+	border-radius: 20rpx;
+	padding: 30rpx;
+	margin-bottom: 30rpx;
+	box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+.details-title {
+	font-size: 32rpx;
+	color: #333;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+}
+.details-text {
+	font-size: 28rpx;
+	color: #666;
+	line-height: 1.5;
+}
+
+/* 建议卡片样式 */
+.suggestion-card {
+	width: 90%;
+	background: rgba(255, 255, 255, 0.9);
+	border-radius: 20rpx;
+	padding: 30rpx;
+	margin-bottom: 30rpx;
+	box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+.suggestion-title {
+	font-size: 32rpx;
+	color: #333;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+}
+.suggestion-item {
+	display: flex;
+	margin-bottom: 20rpx;
+}
+.suggestion-number {
+	width: 40rpx;
+	height: 40rpx;
+	background: #6847c2;
+	color: #fff;
+	border-radius: 20rpx;
+	text-align: center;
+	line-height: 40rpx;
+	font-size: 24rpx;
+	margin-right: 20rpx;
+	flex-shrink: 0;
+}
+.suggestion-text {
+	font-size: 28rpx;
+	color: #666;
+	line-height: 1.5;
+	flex: 1;
+}
+
+/* 底部按钮样式 */
+.bottom-buttons {
+	display: flex;
+	justify-content: space-between;
+	width: 90%;
+	margin-top: 20rpx;
+	margin-bottom: 50rpx;
+}
+.button {
+	width: 45%;
+	height: 90rpx;
+	border-radius: 45rpx;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 30rpx;
+}
+.primary-button {
+	background: #6847c2;
+	color: #ffffff;
+	box-shadow: 0 8rpx 20rpx rgba(104, 71, 194, 0.4);
+}
+.secondary-button {
+	background: rgba(255, 255, 255, 0.9);
+	color: #6847c2;
+	box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
+}
+.primary-button:active, .secondary-button:active {
+	transform: scale(0.98);
+}

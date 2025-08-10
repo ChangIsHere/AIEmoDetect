@@ -1,0 +1,506 @@
+<template>
+  <view class="container">
+    <view class="header">
+      <text class="title">{{ scaleTitle }}</text>
+      <text class="question-count">{{ currentQuestionIndex + 1 }} / {{ currentQuestions.length }}</text>
+    </view>
+
+    <view v-if="currentQuestion" class="questionnaire-card animate-fade-in">
+      <view class="question-text">
+        <text>{{ currentQuestion.id }}. {{ currentQuestion.text }}</text>
+      </view>
+
+      <view class="options-list">
+        <view
+          v-for="(option, index) in currentOptions"
+          :key="option.value"
+          :class="['option-item', { 'selected': userAnswers[currentQuestion.id] === option.value }]"
+          @click="selectAnswer(currentQuestion.id, option.value)"
+        >
+          <text class="option-label">{{ option.value }} =</text>
+          <text class="option-text">{{ option.text }}</text>
+        </view>
+      </view>
+
+      <view class="navigation-buttons">
+        <button class="nav-button prev-button animate-bounce-in" :disabled="currentQuestionIndex === 0" @click="prevQuestion">上一题</button>
+        <button class="nav-button next-button animate-bounce-in" @click="nextQuestion">
+          {{ currentQuestionIndex === currentQuestions.length - 1 ? '提交' : '下一题' }}
+        </button>
+      </view>
+
+      <button class="exit-button animate-fade-in" @click="exitAndSaveProgress">退出并保存进度</button>
+    </view>
+
+    <view v-else class="loading-placeholder">
+      <text class="loading-text">加载中...</text>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+
+const scaleTitle = ref('');
+const scaleType = ref('');
+const currentQuestionIndex = ref(0);
+const userAnswers = ref({}); // { questionId: score }
+
+const dass21Questions = [
+  { id: 1, text: '我感觉很难让自己安静下来' },
+  { id: 2, text: '我感到口干' },
+  { id: 3, text: '我好像不能再有任何愉快、舒畅的感觉' },
+  { id: 4, text: '我感到呼吸困难(例如不是做运动时也感到气促或透不过气来)' },
+  { id: 5, text: '我感到很难自动去开始工作' },
+  { id: 6, text: '我对事情往往作出过敏反应' },
+  { id: 7, text: '我感到颤抖(例如手震)' },
+  { id: 8, text: '我觉得自己消耗很多精神' },
+  { id: 9, text: '我忧虑一些自己恐慌或出丑的场合' },
+  { id: 10, text: '我觉得自己对将来没有甚么可盼望' },
+  { id: 11, text: '我感到忐忑不安' },
+  { id: 12, text: '我感到很难放松自己' },
+  { id: 13, text: '我感到忧 沮丧' },
+  { id: 14, text: '我无法容忍任何阻碍我继续作的事情' },
+  { id: 15, text: '我感到快要恐慌了' },
+  { id: 16, text: '我对任何事也不能热衷' },
+  { id: 17, text: '我觉得自己不怎么配做人' },
+  { id: 18, text: '我发觉自己很容易被触怒' },
+  { id: 19, text: '我察觉自己没有明显的体力劳动时，也感到心律不正常' },
+  { id: 20, text: '我无缘无故地感到害怕' },
+  { id: 21, text: '我感到生命毫无意义' }
+];
+
+const phq9Questions = [
+  { id: 1, text: '做事情几乎没有兴趣或乐趣' },
+  { id: 2, text: '感到情绪低落，沮丧或绝望' },
+  { id: 3, text: '难以入睡或保持睡眠，或睡得太多' },
+  { id: 4, text: '感到疲倦或没有精力' },
+  { id: 5, text: '食欲不振或暴饮暴食' },
+  { id: 6, text: '对自己感到不好，或觉得自己是个失败者，或让自己或家人失望' },
+  { id: 7, text: '难以集中注意力，例如阅读报纸或看电视' },
+  { id: 8, text: '行动或说话缓慢，以至于其他人可能注意到，或者相反—坐立不安或烦躁不安，比平时动得更多' },
+  { id: 9, text: '觉得自己死了会更好，或想伤害自己的念头' }
+];
+
+const dass21Options = [
+  { value: 0, text: '不适用' },
+  { value: 1, text: '很适用，或经常适用' },
+  { value: 2, text: '非常适用' },
+  { value: 3, text: '最适用' }
+];
+
+const phq9Options = [
+  { value: 0, text: '完全没有' },
+  { value: 1, text: '几天' },
+  { value: 2, text: '一半以上日子' },
+  { value: 3, text: '几乎每天' }
+];
+
+const currentQuestions = computed(() => {
+  if (scaleType.value === 'DASS21') {
+    return dass21Questions;
+  } else if (scaleType.value === 'PHQ9') {
+    return phq9Questions;
+  }
+  return [];
+});
+
+const currentOptions = computed(() => {
+  if (scaleType.value === 'DASS21') {
+    return dass21Options;
+  } else if (scaleType.value === 'PHQ9') {
+    return phq9Options;
+  }
+  return [];
+});
+
+const currentQuestion = computed(() => {
+  return currentQuestions.value[currentQuestionIndex.value];
+});
+
+onLoad((options) => {
+  if (options.scaleType) {
+    scaleType.value = options.scaleType;
+    if (scaleType.value === 'DASS21') {
+      scaleTitle.value = '抑郁-焦虑-压力量表 (DASS-21)';
+    } else if (scaleType.value === 'PHQ9') {
+      scaleTitle.value = '抑郁症状评估量表 (PHQ-9)';
+    }
+    // 尝试从本地加载进度
+    loadProgress();
+  } else {
+    uni.showToast({ title: '量表类型未指定', icon: 'error' });
+  }
+});
+
+function selectAnswer(questionId, score) {
+  userAnswers.value[questionId] = score;
+  saveProgress(); // 每次选择答案后保存进度
+}
+
+function nextQuestion() {
+  if (userAnswers.value[currentQuestion.value.id] === undefined) {
+    uni.showToast({ title: '请选择一个答案', icon: 'none' });
+    return;
+  }
+  if (currentQuestionIndex.value < currentQuestions.value.length - 1) {
+    currentQuestionIndex.value++;
+    saveProgress();
+  } else {
+    submitScale();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestionIndex.value > 0) {
+    currentQuestionIndex.value--;
+    saveProgress();
+  }
+}
+
+async function submitScale() {
+  if (userAnswers.value[currentQuestion.value.id] === undefined) {
+    uni.showToast({ title: '请选择一个答案', icon: 'none' });
+    return;
+  }
+
+  const allAnswered = currentQuestions.value.every(q => userAnswers.value[q.id] !== undefined);
+  if (!allAnswered) {
+    uni.showToast({
+      title: '请回答所有题目',
+      icon: 'none',
+      duration: 2000
+    });
+    return;
+  }
+
+  const results = {
+    scaleType: scaleType.value,
+    timestamp: Date.now(),
+    answers: userAnswers.value,
+    totalScore: Object.values(userAnswers.value).reduce((sum, score) => sum + score, 0)
+  };
+
+  try {
+    await uni.setStorage({
+      key: `scaleResult_${results.scaleType}_${results.timestamp}`,
+      data: JSON.stringify(results)
+    });
+    console.log('量表结果已存储:', results);
+
+    uni.showToast({
+      title: '测评完成，结果已保存',
+      icon: 'success',
+      duration: 2000
+    });
+
+    // 清除本次量表的进度数据
+    uni.removeStorage({ key: `scaleProgress_${scaleType.value}` });
+
+    // 跳转到结果页面，并传递结果数据
+    uni.navigateTo({
+      url: `/pages/emotion-result/emotion-result?scaleType=${results.scaleType}&timestamp=${results.timestamp}`,
+      success: function(res) {
+        // 通过eventChannel向下一个页面发送数据
+        res.eventChannel.emit('acceptResultDataFromOpenerPage', { data: results });
+      }
+    });
+
+  } catch (error) {
+    console.error('量表结果保存或跳转失败:', error);
+    uni.showToast({
+      title: '结果处理失败',
+      icon: 'error',
+      duration: 2000
+    });
+  }
+}
+
+async function saveProgress() {
+  const progressKey = `scaleProgress_${scaleType.value}`;
+  const progressData = {
+    questionIndex: currentQuestionIndex.value,
+    answers: userAnswers.value
+  };
+  try {
+    await uni.setStorage({
+      key: progressKey,
+      data: JSON.stringify(progressData)
+    });
+    console.log('进度已保存:', progressData);
+  } catch (error) {
+    console.error('进度保存失败:', error);
+  }
+}
+
+async function loadProgress() {
+  const progressKey = `scaleProgress_${scaleType.value}`;
+  try {
+    const res = await uni.getStorage({
+      key: progressKey
+    });
+    if (res.data) {
+      const progressData = JSON.parse(res.data);
+      currentQuestionIndex.value = progressData.questionIndex;
+      userAnswers.value = progressData.answers;
+      uni.showToast({ title: '已加载上次进度', icon: 'none' });
+    }
+  } catch (error) {
+    console.warn('无上次进度或加载失败:', error);
+  }
+}
+
+async function exitAndSaveProgress() {
+  await saveProgress();
+  uni.showToast({
+    title: '进度已保存，返回列表',
+    icon: 'none',
+    duration: 1500
+  });
+  uni.navigateBack();
+}
+</script>
+
+<style scoped>
+.container {
+  min-height: 100vh;
+  background-color: #050410;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0),
+    linear-gradient(-45deg, #4f00bc, #7d1b7e, #0f0c29, #2a0845, #12c2e9);
+  background-size:
+    4px 4px,
+    400% 400%;
+  animation: gradient-bg 8s ease infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 30rpx;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(79, 0, 188, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(18, 194, 233, 0.3) 0%, transparent 50%);
+  animation: pulse-bg 15s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+@keyframes gradient-bg {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse-bg {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+
+.header {
+  width: 100%;
+  padding: 20rpx;
+  margin-bottom: 40rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  color: white;
+  font-size: 38rpx;
+  text-align: center;
+  text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
+  margin-bottom: 10rpx;
+}
+
+.question-count {
+  color: #ccc;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.questionnaire-card {
+  width: 92%;
+  max-width: 650rpx;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98));
+  border-radius: 25rpx;
+  padding: 40rpx;
+  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.4);
+  margin-top: 20rpx;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.question-text {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 40rpx;
+  line-height: 1.5;
+}
+
+.options-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 25rpx;
+  margin-bottom: 40rpx;
+}
+
+.option-item {
+  background-color: #f0f0f0;
+  border-radius: 18rpx;
+  padding: 25rpx 35rpx;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2rpx solid #eee;
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+.option-item:active {
+  transform: scale(0.98);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
+}
+
+.option-item.selected {
+  background-color: #6b5b95;
+  color: white;
+  border-color: #6b5b95;
+  box-shadow: 0 4rpx 15rpx rgba(107, 91, 149, 0.5);
+}
+
+.option-item.selected .option-label,
+.option-item.selected .option-text {
+  color: white;
+}
+
+.option-label {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #555;
+  margin-right: 15rpx;
+  min-width: 50rpx; /* 确保对齐 */
+  text-align: right;
+}
+
+.option-text {
+  font-size: 30rpx;
+  color: #333;
+  flex: 1;
+}
+
+.navigation-buttons {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  gap: 30rpx;
+  margin-bottom: 30rpx;
+}
+
+.nav-button {
+  flex: 1;
+  background-color: #4f00bc; /* 深紫色 */
+  color: white;
+  padding: 20rpx 0;
+  border-radius: 15rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  box-shadow: 0 5rpx 15rpx rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  border: none;
+  outline: none;
+}
+
+.nav-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.4);
+  opacity: 0.8;
+}
+
+.nav-button:disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: scale(1);
+}
+
+.exit-button {
+  background-color: #888; /* 灰色 */
+  color: white;
+  padding: 15rpx 30rpx;
+  border-radius: 15rpx;
+  font-size: 28rpx;
+  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  border: none;
+  outline: none;
+}
+
+.exit-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.3);
+  opacity: 0.8;
+}
+
+/* 动画 */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+@keyframes bounce-in {
+  0% { opacity: 0; transform: scale(0.5); }
+  70% { opacity: 1; transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.loading-placeholder {
+  color: white;
+  font-size: 32rpx;
+  margin-top: 100rpx;
+}
+</style> 

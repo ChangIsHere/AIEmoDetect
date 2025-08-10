@@ -1,0 +1,93 @@
+import { createSSRApp } from 'vue';
+import App from './App.uvue';
+// 确保API正确初始化
+let isAppReady = false;
+export function createApp(): UTSJSONObject {
+    const app = createSSRApp(App);
+    // 提供全局状态管理的简单方法
+    app.config.globalProperties.$global = {
+        isApiInitialized: false,
+        apiReadyCallbacks: [],
+        // 注册API就绪回调
+        onApiReady(callback) {
+            if (this.isApiInitialized) {
+                callback();
+            }
+            else {
+                this.apiReadyCallbacks.push(callback);
+            }
+        },
+        // 标记API已初始化并触发回调
+        markApiAsInitialized() {
+            this.isApiInitialized = true;
+            // 触发所有等待的回调
+            this.apiReadyCallbacks.forEach(callback => {
+                try {
+                    callback();
+                }
+                catch (err: any) {
+                    console.error('API就绪回调执行错误:', err);
+                }
+            });
+            // 清空回调列表
+            this.apiReadyCallbacks = [];
+        }
+    };
+    return {
+        app,
+        // 初始化完成时的回调
+        onLaunch() {
+            console.log('App onLaunch');
+            isAppReady = true;
+            // 延迟一秒确保uni API加载完成
+            setTimeout(() => {
+                app.config.globalProperties.$global.markApiAsInitialized();
+                console.log('标记API已初始化');
+            }, 1500);
+        }
+    };
+}
+export function main(app: IApp) {
+    definePageRoutes();
+    defineAppConfig();
+    (createApp()['app'] as VueApp).mount(app, GenUniApp());
+}
+export class UniAppConfig extends io.dcloud.uniapp.appframe.AppConfig {
+    override name: string = "AI情绪检测移动版";
+    override appid: string = "__UNI__7900500";
+    override versionName: string = "1.0.0";
+    override versionCode: string = "100";
+    override uniCompilerVersion: string = "4.66";
+    constructor() { super(); }
+}
+import GenPagesIndexIndexClass from './pages/index/index.uvue?type=page';
+import GenPagesPages2Pages2Class from './pages/pages2/pages2.uvue?type=page';
+import GenPagesPages3Pages3Class from './pages/pages3/pages3.uvue?type=page';
+import GenPagesPages4Pages4Class from './pages/pages4/pages4.uvue?type=page';
+import GenPagesEmotionDetectEmotionDetectClass from './pages/emotion-detect/emotion-detect.uvue?type=page';
+import GenPagesEmotionResultEmotionResultClass from './pages/emotion-result/emotion-result.uvue?type=page';
+import GenPagesQuestionnaireQuestionnaireClass from './pages/questionnaire/questionnaire.uvue?type=page';
+import GenPagesBreathingExerciseBreathingExerciseClass from './pages/breathing-exercise/breathing-exercise.uvue?type=page';
+import GenPagesEmotionDiaryEmotionDiaryClass from './pages/emotion-diary/emotion-diary.uvue?type=page';
+function definePageRoutes() {
+    __uniRoutes.push({ path: "pages/index/index", component: GenPagesIndexIndexClass, meta: { isQuit: true } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "主页"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/pages2/pages2", component: GenPagesPages2Pages2Class, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "量表生成"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/pages3/pages3", component: GenPagesPages3Pages3Class, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "心理介入治疗"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/pages4/pages4", component: GenPagesPages4Pages4Class, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "我的"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/emotion-detect/emotion-detect", component: GenPagesEmotionDetectEmotionDetectClass, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "AI情绪检测"], ["navigationStyle", "custom"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/emotion-result/emotion-result", component: GenPagesEmotionResultEmotionResultClass, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "情绪分析结果"], ["navigationStyle", "custom"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/questionnaire/questionnaire", component: GenPagesQuestionnaireQuestionnaireClass, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "量表问卷"], ["navigationStyle", "custom"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/breathing-exercise/breathing-exercise", component: GenPagesBreathingExerciseBreathingExerciseClass, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "呼吸调节 (测试)"], ["navigationStyle", "custom"]]) } as UniPageRoute);
+    __uniRoutes.push({ path: "pages/emotion-diary/emotion-diary", component: GenPagesEmotionDiaryEmotionDiaryClass, meta: { isQuit: false } as UniPageMeta, style: utsMapOf([["navigationBarTitleText", "情绪日记"], ["navigationStyle", "custom"]]) } as UniPageRoute);
+}
+const __uniTabBar: Map<string, any | null> | null = utsMapOf([["color", "#999999"], ["selectedColor", "#FFFFFF"], ["backgroundColor", "#050410"], ["list", [utsMapOf([["pagePath", "pages/index/index"], ["text", "主页"]]), utsMapOf([["pagePath", "pages/pages2/pages2"], ["text", "量表生成"]]), utsMapOf([["pagePath", "pages/pages3/pages3"], ["text", "心理介入治疗"]]), utsMapOf([["pagePath", "pages/pages4/pages4"], ["text", "我的"]])]]]);
+const __uniLaunchPage: Map<string, any | null> = utsMapOf([["url", "pages/index/index"], ["style", utsMapOf([["navigationBarTitleText", "主页"]])]]);
+function defineAppConfig() {
+    __uniConfig.entryPagePath = '/pages/index/index';
+    __uniConfig.globalStyle = utsMapOf([["navigationBarTextStyle", "white"], ["navigationBarTitleText", "AI情绪识别"], ["navigationBarBackgroundColor", "#050410"], ["backgroundColor", "#050410"]]);
+    __uniConfig.getTabBarConfig = (): Map<string, any> | null => utsMapOf([["color", "#999999"], ["selectedColor", "#FFFFFF"], ["backgroundColor", "#050410"], ["list", [utsMapOf([["pagePath", "pages/index/index"], ["text", "主页"]]), utsMapOf([["pagePath", "pages/pages2/pages2"], ["text", "量表生成"]]), utsMapOf([["pagePath", "pages/pages3/pages3"], ["text", "心理介入治疗"]]), utsMapOf([["pagePath", "pages/pages4/pages4"], ["text", "我的"]])]]]);
+    __uniConfig.tabBar = __uniConfig.getTabBarConfig();
+    __uniConfig.conditionUrl = '';
+    __uniConfig.uniIdRouter = new Map();
+    __uniConfig.ready = true;
+}

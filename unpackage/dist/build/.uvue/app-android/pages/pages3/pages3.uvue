@@ -1,0 +1,108 @@
+const __sfc__ = defineComponent({
+    __name: 'pages3',
+    setup(__props): any | null {
+        const __ins = getCurrentInstance()!;
+        const _ctx = __ins.proxy as InstanceType<typeof __sfc__>;
+        const _cache = __ins.renderCache;
+        function startTherapy(type) {
+            // 根据 type 导航到不同的治疗页面
+            if (type === '呼吸调节练习') {
+                uni.navigateTo({
+                    url: '/pages/breathing-exercise/breathing-exercise'
+                });
+            }
+            else if (type === '情绪日记') {
+                uni.navigateTo({
+                    url: '/pages/emotion-diary/emotion-diary'
+                });
+            }
+            else {
+                uni.showToast({
+                    title: `即将推出: ${type}`,
+                    icon: 'none'
+                });
+            }
+        }
+        return (): any | null => {
+            return createElementVNode("view", utsMapOf({ class: "container" }), [
+                createElementVNode("view", utsMapOf({ class: "particles" }), [
+                    createElementVNode(Fragment, null, RenderHelpers.renderList(20, (i, __key, __index, _cached): any => {
+                        return createElementVNode("view", utsMapOf({
+                            class: "particle",
+                            key: i,
+                            style: normalizeStyle(utsMapOf({
+                                left: Math.random() * 100 + '%',
+                                top: Math.random() * 100 + '%',
+                                opacity: (Math.random() * 0.5 + 0.3),
+                                width: (Math.random() * 3 + 1) + 'rpx',
+                                height: (Math.random() * 3 + 1) + 'rpx',
+                                boxShadow: '0 0 ' + (Math.random() * 10 + 5) + 'rpx rgba(255, 255, 255, 0.8)',
+                                animationDelay: (Math.random() * 15) + 's',
+                                animationDuration: (Math.random() * 30 + 15) + 's'
+                            }))
+                        }), null, 4 /* STYLE */);
+                    }), 64 /* STABLE_FRAGMENT */)
+                ]),
+                createElementVNode("view", utsMapOf({ class: "therapy-list" }), [
+                    createElementVNode("view", utsMapOf({
+                        class: "therapy-item animate-scale-in",
+                        style: normalizeStyle(utsMapOf({ "--i": "0" })),
+                        onClick: () => { startTherapy('冥想放松练习'); }
+                    }), [
+                        createElementVNode("image", utsMapOf({
+                            src: "/static/meditation.png",
+                            class: "therapy-image"
+                        })),
+                        createElementVNode("view", utsMapOf({ class: "therapy-info" }), [
+                            createElementVNode("text", utsMapOf({ class: "therapy-title" }), "冥想放松练习"),
+                            createElementVNode("text", utsMapOf({ class: "therapy-desc" }), "通过引导式冥想减轻焦虑和压力"),
+                            createElementVNode("view", utsMapOf({ class: "therapy-duration" }), [
+                                createElementVNode("text", null, "时长: 10分钟")
+                            ])
+                        ])
+                    ], 12 /* STYLE, PROPS */, ["onClick"]),
+                    createElementVNode("view", utsMapOf({
+                        class: "therapy-item animate-scale-in",
+                        style: normalizeStyle(utsMapOf({ "--i": "2" })),
+                        onClick: () => { startTherapy('呼吸调节练习'); }
+                    }), [
+                        createElementVNode("image", utsMapOf({
+                            src: "/static/breathing.png",
+                            class: "therapy-image"
+                        })),
+                        createElementVNode("view", utsMapOf({ class: "therapy-info" }), [
+                            createElementVNode("text", utsMapOf({ class: "therapy-title" }), "呼吸调节练习"),
+                            createElementVNode("text", utsMapOf({ class: "therapy-desc" }), "通过深呼吸减轻焦虑和紧张情绪"),
+                            createElementVNode("view", utsMapOf({ class: "therapy-duration" }), [
+                                createElementVNode("text", null, "时长: 5分钟")
+                            ])
+                        ])
+                    ], 12 /* STYLE, PROPS */, ["onClick"]),
+                    createElementVNode("view", utsMapOf({
+                        class: "therapy-item animate-scale-in",
+                        style: normalizeStyle(utsMapOf({ "--i": "3" })),
+                        onClick: () => { startTherapy('情绪日记'); }
+                    }), [
+                        createElementVNode("image", utsMapOf({
+                            src: "/static/journal.png",
+                            class: "therapy-image"
+                        })),
+                        createElementVNode("view", utsMapOf({ class: "therapy-info" }), [
+                            createElementVNode("text", utsMapOf({ class: "therapy-title" }), "情绪日记"),
+                            createElementVNode("text", utsMapOf({ class: "therapy-desc" }), "记录和反思每天的情绪变化"),
+                            createElementVNode("view", utsMapOf({ class: "therapy-duration" }), [
+                                createElementVNode("text", null, "时长: 自定义")
+                            ])
+                        ])
+                    ], 12 /* STYLE, PROPS */, ["onClick"])
+                ])
+            ]);
+        };
+    }
+});
+export default __sfc__;
+const GenPagesPages3Pages3Styles = [utsMapOf([["container", padStyleMapOf(utsMapOf([["backgroundColor", "#03020d"], ["backgroundSize", "4px 4px,\n\t\t\t400% 400%"], ["animation", "gradient-bg 15s ease infinite"], ["paddingTop", "40rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "30rpx"], ["position", "relative"], ["overflow", "hidden"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["justifyContent", "center"], ["boxSizing", "border-box"], ["content::before", "''"], ["position::before", "absolute"], ["top::before", 0], ["left::before", 0], ["right::before", 0], ["bottom::before", 0], ["animation::before", "pulse-bg 15s ease-in-out infinite alternate"], ["zIndex::before", 0], ["content::after", "''"], ["position::after", "absolute"], ["top::after", 0], ["left::after", 0], ["width::after", "100%"], ["height::after", "100%"], ["backgroundSize::after", "30px 30px"], ["pointerEvents::after", "none"], ["opacity::after", 0.4], ["zIndex::after", 1]]))], ["particles", padStyleMapOf(utsMapOf([["position", "absolute"], ["top", 0], ["left", 0], ["width", "100%"], ["height", "100%"], ["overflow", "hidden"], ["zIndex", 2]]))], ["particle", padStyleMapOf(utsMapOf([["position", "absolute"], ["width", "4rpx"], ["height", "4rpx"], ["backgroundColor", "rgba(255,255,255,0.8)"], ["animation", "float-particle 15s linear infinite"], ["boxShadow", "0 0 5rpx rgba(255, 255, 255, 0.8)"]]))], ["therapy-list", padStyleMapOf(utsMapOf([["width", "92%"], ["flex", 1], ["display", "flex"], ["flexDirection", "column"], ["gap", "20rpx"], ["overflowY", "auto"], ["position", "relative"], ["zIndex", 3], ["paddingTop", "20rpx"], ["paddingRight", 0], ["paddingBottom", "20rpx"], ["paddingLeft", 0], ["marginTop", "50rpx"], ["marginRight", "auto"], ["marginBottom", 0], ["marginLeft", "auto"], ["maxWidth", "650rpx"]]))], ["therapy-item", padStyleMapOf(utsMapOf([["display", "flex"], ["alignItems", "center"], ["backgroundImage", "linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.9))"], ["backgroundColor", "rgba(0,0,0,0)"], ["borderTopLeftRadius", "20rpx"], ["borderTopRightRadius", "20rpx"], ["borderBottomRightRadius", "20rpx"], ["borderBottomLeftRadius", "20rpx"], ["paddingTop", "25rpx"], ["paddingRight", "25rpx"], ["paddingBottom", "25rpx"], ["paddingLeft", "25rpx"], ["boxShadow", "0 4rpx 10rpx rgba(0, 0, 0, 0.2)"], ["transform:active", "scale(0.98)"], ["boxShadow:active", "0 2rpx 5rpx rgba(0, 0, 0, 0.3)"]]))], ["therapy-image", padStyleMapOf(utsMapOf([["width", "120rpx"], ["height", "120rpx"], ["borderTopLeftRadius", "15rpx"], ["borderTopRightRadius", "15rpx"], ["borderBottomRightRadius", "15rpx"], ["borderBottomLeftRadius", "15rpx"], ["marginRight", "20rpx"], ["boxShadow", "0 2rpx 8rpx rgba(0, 0, 0, 0.2)"], ["transitionProperty", "transform"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["objectFit", "cover"]]))], ["therapy-info", padStyleMapOf(utsMapOf([["flex", 1]]))], ["therapy-title", padStyleMapOf(utsMapOf([["fontSize", "32rpx"], ["color", "#333333"], ["marginBottom", "10rpx"]]))], ["therapy-desc", padStyleMapOf(utsMapOf([["fontSize", "24rpx"], ["color", "#666666"], ["marginBottom", "10rpx"]]))], ["therapy-duration", padStyleMapOf(utsMapOf([["display", "flex"], ["justifyContent", "flex-start"], ["alignItems", "center"]]))], ["animate-fade-in", padStyleMapOf(utsMapOf([["animation", "fade-in 0.5s ease-out forwards"]]))], ["animate-scale-in", padStyleMapOf(utsMapOf([["animation", "scale-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards"], ["opacity", 0], ["transform", "scale(0.9)"], ["animationDelay", calc()]]))]])];
+var ;
+(--i) * 0.1;
+s;
+["@FONT-FACE", utsMapOf([["0", utsMapOf([])], ["1", utsMapOf([])], ["2", utsMapOf([])], ["3", utsMapOf([])], ["4", utsMapOf([])]])], ["@TRANSITION", utsMapOf([["therapy-image", utsMapOf([["property", "transform"], ["duration", "0.3s"], ["timingFunction", "ease"]])]])];

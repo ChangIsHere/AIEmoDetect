@@ -1,0 +1,513 @@
+<template>
+	<view class="container">
+		<view class="header animate-fade-in">
+			<text class="title">量表生成</text>
+		</view>
+
+		<view class="scale-list">
+			<view class="scale-item animate-slide-in" style="--i: 0" @click="startScale('PHQ9')">
+				<view class="scale-info">
+					<text class="scale-title">抑郁症状评估量表 (PHQ-9)</text>
+					<text class="scale-desc">用于评估抑郁症状的严重程度</text>
+				</view>
+				<view class="start-button">开始</view>
+			</view>
+
+			<view class="scale-item animate-slide-in" style="--i: 1" @click="startScale('DASS21')">
+				<view class="scale-info">
+					<text class="scale-title">抑郁-焦虑-压力量表 (DASS-21)</text>
+					<text class="scale-desc">同时评估抑郁、焦虑和压力症状</text>
+				</view>
+				<view class="start-button">开始</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue';
+
+const showScaleQuestionnaire = ref(false);
+const currentScaleType = ref(''); // 'DASS21' or 'PHQ9'
+const currentQuestionIndex = ref(0);
+const userAnswers = ref({}); // Stores answers for the current questionnaire { questionId: score }
+
+const dass21Questions = [
+  { id: 1, text: '我感觉很难让自己安静下来' },
+  { id: 2, text: '我感到口干' },
+  { id: 3, text: '我好像不能再有任何愉快、舒畅的感觉' },
+  { id: 4, text: '我感到呼吸困难(例如不是做运动时也感到气促或透不过气来)' },
+  { id: 5, text: '我感到很难自动去开始工作' },
+  { id: 6, text: '我对事情往往作出过敏反应' },
+  { id: 7, text: '我感到颤抖(例如手震)' },
+  { id: 8, text: '我觉得自己消耗很多精神' },
+  { id: 9, text: '我忧虑一些自己恐慌或出丑的场合' },
+  { id: 10, text: '我觉得自己对将来没有甚么可盼望' },
+  { id: 11, text: '我感到忐忑不安' },
+  { id: 12, text: '我感到很难放松自己' },
+  { id: 13, text: '我感到忧 沮丧' },
+  { id: 14, text: '我无法容忍任何阻碍我继续作的事情' },
+  { id: 15, text: '我感到快要恐慌了' },
+  { id: 16, text: '我对任何事也不能热衷' },
+  { id: 17, text: '我觉得自己不怎么配做人' },
+  { id: 18, text: '我发觉自己很容易被触怒' },
+  { id: 19, text: '我察觉自己没有明显的体力劳动时，也感到心律不正常' },
+  { id: 20, text: '我无缘无故地感到害怕' },
+  { id: 21, text: '我感到生命毫无意义' }
+];
+
+const phq9Questions = [
+  { id: 1, text: '做事情几乎没有兴趣或乐趣' },
+  { id: 2, text: '感到情绪低落，沮丧或绝望' },
+  { id: 3, text: '难以入睡或保持睡眠，或睡得太多' },
+  { id: 4, text: '感到疲倦或没有精力' },
+  { id: 5, text: '食欲不振或暴饮暴食' },
+  { id: 6, text: '对自己感到不好，或觉得自己是个失败者，或让自己或家人失望' },
+  { id: 7, text: '难以集中注意力，例如阅读报纸或看电视' },
+  { id: 8, text: '行动或说话缓慢，以至于其他人可能注意到，或者相反—坐立不安或烦躁不安，比平时动得更多' },
+  { id: 9, text: '觉得自己死了会更好，或想伤害自己的念头' }
+];
+
+// 计算当前量表的题目列表
+const currentQuestions = computed(() => {
+  if (currentScaleType.value === 'DASS21') {
+    return dass21Questions;
+  } else if (currentScaleType.value === 'PHQ9') {
+    return phq9Questions;
+  }
+  return [];
+});
+
+// 计算当前显示的题目
+const currentQuestion = computed(() => {
+  return currentQuestions.value[currentQuestionIndex.value];
+});
+
+// DASS21 评估值
+const dass21Options = [
+  { value: 0, text: '不适用' },
+  { value: 1, text: '很适用，或经常适用' },
+  { value: 2, text: '非常适用' },
+  { value: 3, text: '最适用' }
+];
+
+// PHQ-9 评估值
+const phq9Options = [
+  { value: 0, text: '完全没有' },
+  { value: 1, text: '几天' },
+  { value: 2, text: '一半以上日子' },
+  { value: 3, text: '几乎每天' }
+];
+
+// 计算当前量表的选项
+const currentOptions = computed(() => {
+  if (currentScaleType.value === 'DASS21') {
+    return dass21Options;
+  } else if (currentScaleType.value === 'PHQ9') {
+    return phq9Options;
+  }
+  return [];
+});
+
+function startScale(type) {
+  uni.navigateTo({
+    url: `/pages/questionnaire/questionnaire?scaleType=${type}`
+  });
+}
+
+function selectAnswer(questionId, score) {
+  userAnswers.value[questionId] = score;
+}
+
+function nextQuestion() {
+  if (currentQuestionIndex.value < currentQuestions.value.length - 1) {
+    currentQuestionIndex.value++;
+  } else {
+    submitScale();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestionIndex.value > 0) {
+    currentQuestionIndex.value--;
+  }
+}
+
+async function submitScale() {
+  // 检查是否所有题目都已回答
+  const allAnswered = currentQuestions.value.every(q => userAnswers.value[q.id] !== undefined);
+  if (!allAnswered) {
+    uni.showToast({
+      title: '请回答所有题目',
+      icon: 'none',
+      duration: 2000
+    });
+    return;
+  }
+
+  // 整理数据，准备存储或发送后端
+  const results = {
+    scaleType: currentScaleType.value,
+    timestamp: Date.now(),
+    answers: userAnswers.value,
+    // 可以在这里计算总分等，或留给后端
+    totalScore: Object.values(userAnswers.value).reduce((sum, score) => sum + score, 0)
+  };
+
+  try {
+    // 存储结果到本地
+    await uni.setStorage({
+      key: `scaleResult_${results.scaleType}_${results.timestamp}`,
+      data: JSON.stringify(results)
+    });
+    console.log('量表结果已存储:', results);
+
+    uni.showToast({
+      title: '测评完成，结果已保存',
+      icon: 'success',
+      duration: 2000
+    });
+
+    // TODO: 将来在此处调用后端算法，将数据传给算法端
+    // 例如: request.sendScaleResults(results);
+
+  } catch (error) {
+    console.error('量表结果保存失败:', error);
+		uni.showToast({
+      title: '结果保存失败',
+      icon: 'error',
+      duration: 2000
+		});
+	}
+
+  // 返回量表列表视图
+  showScaleQuestionnaire.value = false;
+}
+
+function backToScaleList() {
+  showScaleQuestionnaire.value = false;
+  currentScaleType.value = '';
+}
+
+</script>
+
+<style scoped>
+	.container {
+		height: 100vh;
+		background-color: #050410;
+		background-image:
+			radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0),
+			linear-gradient(-45deg, #4f00bc, #7d1b7e, #0f0c29, #2a0845, #12c2e9);
+		background-size:
+			4px 4px,
+			400% 400%;
+		animation: gradient-bg 8s ease infinite;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 40rpx 30rpx;
+		box-sizing: border-box;
+		position: relative;
+		overflow: hidden;
+	}
+	
+	.container::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: 
+			radial-gradient(circle at 20% 30%, rgba(79, 0, 188, 0.3) 0%, transparent 50%),
+			radial-gradient(circle at 80% 70%, rgba(18, 194, 233, 0.3) 0%, transparent 50%);
+		animation: pulse-bg 15s ease-in-out infinite alternate;
+		z-index: 0;
+	}
+
+	@keyframes gradient-bg {
+		0% {
+			background-position: 0% 50%;
+		}
+
+		50% {
+			background-position: 100% 50%;
+		}
+
+		100% {
+			background-position: 0% 50%;
+		}
+	}
+	
+	@keyframes pulse-bg {
+		0% {
+			opacity: 0.5;
+			transform: scale(1);
+		}
+		50% {
+			opacity: 0.7;
+			transform: scale(1.05);
+		}
+		100% {
+			opacity: 0.5;
+			transform: scale(1);
+		}
+	}
+
+	.header {
+		width: 100%;
+		padding: 20rpx;
+		margin-bottom: 40rpx;
+		display: flex;
+		justify-content: center;
+		position: relative;
+		z-index: 1;
+	}
+
+	.title {
+		color: white;
+		font-size: 36rpx;
+		text-align: center;
+		text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
+	}
+
+	.scale-list {
+		width: 92%;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 25rpx;
+		overflow-y: auto;
+		position: relative;
+		z-index: 1;
+		padding: 10rpx;
+		max-width: 650rpx;
+		margin: 0 auto;
+	}
+
+	.scale-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.9));
+		border-radius: 20rpx;
+		padding: 25rpx 30rpx;
+		box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.2);
+		transition: all 0.3s ease;
+	}
+	
+	.scale-item:active {
+		transform: scale(0.98);
+		box-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.3);
+	}
+
+	.scale-info {
+		flex: 1;
+	}
+
+	.scale-title {
+		font-size: 32rpx;
+		color: #333;
+		margin-bottom: 10rpx;
+	}
+
+	.scale-desc {
+		font-size: 24rpx;
+		color: #666;
+	}
+
+	.start-button {
+		background-color: #6b5b95;
+		color: white;
+		padding: 10rpx 20rpx;
+		border-radius: 10rpx;
+		font-size: 28rpx;
+		box-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.2);
+		transition: all 0.2s ease;
+	}
+	
+	.start-button:active {
+		transform: scale(0.95);
+		box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.3);
+	}
+	
+	.animate-fade-in {
+		animation: fade-in 0.5s ease-out forwards;
+	}
+	
+	.animate-slide-in {
+		animation: slide-in 0.5s ease-out forwards;
+		opacity: 0;
+		transform: translateX(-20rpx);
+		animation-delay: calc(var(--i) * 0.1s);
+	}
+	
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+	
+	@keyframes slide-in {
+		from { 
+			opacity: 0;
+			transform: translateX(-20rpx);
+		}
+		to { 
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	/* 量表问卷样式 */
+	.questionnaire-container {
+		width: 90%;
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98));
+		border-radius: 20rpx;
+		padding: 30rpx;
+		box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.3);
+		transform: translateY(-50rpx); /* 移到屏幕中间 */
+		z-index: 2;
+		position: relative;
+	}
+
+	.question-header {
+		margin-bottom: 30rpx;
+		padding-bottom: 20rpx;
+		border-bottom: 1rpx solid #eee;
+	}
+
+	.question-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+		text-align: center;
+	}
+
+	.options-list {
+		display: flex;
+		flex-direction: column;
+		gap: 20rpx;
+		margin-bottom: 30rpx;
+	}
+
+	.option-item {
+		background-color: #f0f0f0;
+		border-radius: 15rpx;
+		padding: 20rpx 30rpx;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		border: 1rpx solid #eee;
+	}
+	
+	.option-item:active {
+		background-color: #e0e0e0;
+		transform: scale(0.98);
+	}
+
+	.option-item.selected {
+		background-color: #6b5b95; /* 选中后的背景色 */
+		color: white; /* 选中后的文字颜色 */
+		border-color: #6b5b95; /* 选中后的边框颜色 */
+	}
+
+	.option-item.selected .option-text {
+		color: white;
+	}
+
+	.option-text {
+		font-size: 28rpx;
+		color: #333;
+	}
+
+	.question-footer {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding-top: 20rpx;
+		border-top: 1rpx solid #eee;
+	}
+
+	.prev-button, .next-button {
+		background-color: #6b5b95;
+		color: white;
+		padding: 10rpx 25rpx;
+		border-radius: 10rpx;
+		font-size: 28rpx;
+		box-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.2);
+		transition: all 0.2s ease;
+	}
+
+	.prev-button:active, .next-button:active {
+		transform: scale(0.95);
+		box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.3);
+	}
+
+	.prev-button:disabled, .next-button:disabled {
+		background-color: #ccc;
+		color: #666;
+		cursor: not-allowed;
+	}
+
+	/* 量表结果样式 */
+	.scale-result-container {
+		width: 90%;
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98));
+		border-radius: 20rpx;
+		padding: 30rpx;
+		box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.3);
+		transform: translateY(-50rpx); /* 移到屏幕中间 */
+		z-index: 2;
+		position: relative;
+	}
+
+	.result-header {
+		margin-bottom: 30rpx;
+		padding-bottom: 20rpx;
+		border-bottom: 1rpx solid #eee;
+	}
+
+	.result-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+		text-align: center;
+	}
+
+	.result-content {
+		margin-bottom: 30rpx;
+		padding-bottom: 20rpx;
+		border-bottom: 1rpx solid #eee;
+	}
+
+	.result-text {
+		font-size: 28rpx;
+		color: #555;
+		margin-bottom: 10rpx;
+	}
+
+	.answer-item {
+		margin-bottom: 10rpx;
+		padding-left: 20rpx;
+		border-left: 4rpx solid #6b5b95;
+	}
+
+	.answer-text {
+		font-size: 26rpx;
+		color: #444;
+	}
+
+	.back-button {
+		background-color: #6b5b95;
+		color: white;
+		padding: 15rpx 30rpx;
+		border-radius: 10rpx;
+		font-size: 28rpx;
+		box-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.2);
+		transition: all 0.2s ease;
+	}
+
+	.back-button:active {
+		transform: scale(0.95);
+		box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.3);
+	}
+</style>

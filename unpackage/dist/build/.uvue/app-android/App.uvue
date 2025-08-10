@@ -1,0 +1,255 @@
+const negativeKeywords = [
+    "难受", "心情不好", "自杀", "焦虑", "恐慌", "抑郁", "不想活", "压力大", "很累", "绝望", "无助", "烦躁",
+    "痛苦", "崩溃", "想哭", "不开心", "伤心", "失眠", "没意义", "想放弃", "没人懂", "孤独", "害怕", "恐惧",
+    "烦", "累", "不想说话", "不想动", "不想见人", "不想上班", "不想上学", "没动力", "没希望", "想死", "想离开",
+    "烦闷", "心累", "心痛", "绝望", "麻木", "无感", "无聊", "无助", "无望", "不想活了", "撑不住", "撑不下去",
+    "情绪低落", "消沉", "郁闷", "闷闷不乐", "萎靡不振", "沮丧", "悲伤", "哀伤", "愁苦", "失落", "灰心", "失望",
+    "愤懑", "恼怒", "火大", "暴躁", "狂躁", "怨恨", "厌恶", "憎恨", "反感", "不满", "气愤",
+    "紧张", "担忧", "忧虑", "不安", "手足无措", "心烦意乱", "忐忑", "惊恐", "骇然", "毛骨悚然", "不寒而栗",
+    "寂寞", "孤单", "空虚", "失落", "无聊", "空虚", "迷茫", "彷徨", "困惑",
+    "疲惫", "精疲力尽", "身心俱疲", "筋疲力尽", "虚弱", "乏力", "力不从心", "透支",
+    "厌世", "生无可恋", "了无生趣", "苟延残喘", "行尸走肉", "自我否定", "自我怀疑", "无地自容", "羞愧", "内疚",
+    "逃避", "躲避", "退缩", "不敢面对", "不敢想", "不想提", "忘不掉", "放不下", "走不出来"
+];
+import request from './utils/request.js'; // Corrected import path
+let resizeTimer = null; // 用于防抖的定时器
+const __sfc__ = defineApp({
+    data() {
+        return {
+            messages: [
+                { content: '你好！我是一个AI心理助手，很高兴为你服务！有什么可以帮助你的吗？', type: 'ai', id: 1 },
+                { content: '如果你有任何情绪上的困扰，或者只是想找人聊聊，都可以告诉我哦！', type: 'ai', id: 2 }
+            ] as Array<{
+                content: string;
+                type: 'user' | 'ai';
+                id: number;
+            }>,
+            userInput: '',
+            keyboardHeight: 0,
+            animating: false,
+            scrollTop: 0,
+            loading: false,
+            messageCount: 0,
+            showEmotionModal: false,
+            sessionId: 'user_' + Date.now(),
+            lastShowPromptTime: 0,
+            isLandscape: false,
+            windowWidth: 0,
+            windowHeight: 0, // 窗口高度
+        };
+    },
+    onLoad() {
+        console.log("页面 onLoad: 初始化屏幕尺寸和监听器");
+        const systemInfo = uni.getSystemInfoSync();
+        this.windowWidth = systemInfo.windowWidth;
+        this.windowHeight = systemInfo.windowHeight;
+        this.checkOrientation();
+        // 直接在onLoad中添加事件监听器
+        window.addEventListener('resize', this.handleResize);
+    },
+    onUnload() {
+        console.log("页面 onUnload: 移除屏幕尺寸监听器");
+        window.removeEventListener('resize', this.handleResize);
+        if (resizeTimer) {
+            clearTimeout(resizeTimer);
+        }
+    },
+    methods: {
+        // 检查横竖屏状态
+        checkOrientation() {
+            const isLand = this.windowWidth > this.windowHeight;
+            if (this.isLandscape !== isLand) { // 只有在状态改变时才更新和打印
+                this.isLandscape = isLand;
+                console.log(`屏幕方向切换到: ${isLand ? "横屏模式" : "竖屏模式"}`);
+            }
+        },
+        // 处理尺寸变化
+        handleResize() {
+            console.log("窗口尺寸变化事件触发");
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const systemInfo = uni.getSystemInfoSync();
+                this.windowWidth = systemInfo.windowWidth;
+                this.windowHeight = systemInfo.windowHeight;
+                console.log(`新窗口尺寸: 宽度=${this.windowWidth}, 高度=${this.windowHeight}`);
+                this.checkOrientation();
+            }, 100); // 防抖延迟
+        },
+        // 新增：检测消息是否包含负面关键词
+        containsNegativeKeyword(msg): boolean {
+            return negativeKeywords.some((word): boolean => msg.includes(word));
+        },
+        // 新增：检测AI回复中是否包含情绪扫描推荐关键词
+        containsAIRecommendedKeyword(response): boolean {
+            const promptKeywords = ['情绪扫描', '情绪分析', '检测你的情绪', '心理检测', '情绪波动',
+                '情绪状态', '心情如何', '心理状况', '需要帮助', '看起来很', '建议你', '似乎你在',
+                '或许你需要', '我感受到你的', '看起来你可能在', '你的语气显示', '让我们一起'
+            ];
+            const emotionWordsInAIResponse = ['伤心', '难过', '焦虑', '担忧', '生气', '愤怒', '恐惧',
+                '紧张', '压力', '困扰', '烦恼', '消极', '抑郁', '悲观'
+            ];
+            let foundPromptKeyword = promptKeywords.some((keyword): boolean => response.includes(keyword));
+            let emotionWordCount = emotionWordsInAIResponse.filter((word): boolean => response.includes(word)).length;
+            return foundPromptKeyword || (emotionWordCount >= 2);
+        },
+        // 统一的情绪检测触发逻辑
+        runComprehensiveEmotionCheck() {
+            // 确保至少聊了3句（用户消息和AI回复总和）才开始检测
+            if (this.messageCount < 3) {
+                return;
+            }
+            // 检查冷却时间，避免频繁弹窗（5分钟 = 300000毫秒）
+            if (Date.now() - this.lastShowPromptTime < 300000) {
+                return;
+            }
+            let shouldTriggerModal = false;
+            // 遍历所有消息（用户和AI的），检测关键词
+            // 注意：这里可以根据需要优化，例如只检测最近N条消息
+            for (const message of this.messages) {
+                if (message.type === 'user') {
+                    if (this.containsNegativeKeyword(message.content)) {
+                        shouldTriggerModal = true;
+                        break; // 发现关键词即可触发
+                    }
+                }
+                else if (message.type === 'ai') {
+                    // 如果AI回复中包含情绪相关的关键词或AI推荐词
+                    if (this.containsAIRecommendedKeyword(message.content)) {
+                        shouldTriggerModal = true;
+                        break; // 发现关键词即可触发
+                    }
+                }
+            }
+            if (shouldTriggerModal && !this.showEmotionModal) {
+                setTimeout(() => {
+                    this.showEmotionModal = true;
+                    this.lastShowPromptTime = Date.now();
+                }, 1000); // 延迟1秒显示弹窗，更自然
+            }
+        },
+        // 处理消息发送
+        handleSend() {
+            if (!this.userInput.trim() || this.animating || this.loading)
+                return;
+            const userText = this.userInput.trim();
+            this.userInput = '';
+            this.animating = true;
+            this.loading = true;
+            // 添加用户消息
+            this.messages.push({
+                content: userText,
+                type: 'user',
+                id: Date.now()
+            });
+            // 消息发送后滚动到底部
+            this.$nextTick(() => {
+                this.scrollToBottom();
+                // 调用API获取回复
+                this.getAIResponse(userText);
+                // 增加消息计数
+                this.messageCount++;
+                // 每次用户发送消息后，运行全面的情绪检测
+                this.runComprehensiveEmotionCheck();
+            });
+        },
+        // 调用API获取AI响应
+        getAIResponse(userText) {
+            console.log('getAIResponse: 开始调用LLM API');
+            console.log('发送给LLM的userText:', userText);
+            console.log('使用的sessionId:', this.sessionId);
+            // 显示加载指示器
+            uni.showLoading({
+                title: '分析中...',
+                mask: false
+            });
+            // 使用真实的LLM API
+            request.chatWithLLM({
+                message: userText,
+                sessionId: this.sessionId
+            })
+                .then(res => {
+                console.log('LLM API调用成功，收到完整响应:', res);
+                uni.hideLoading(); // 提前隐藏loading
+                const response = res.response_text;
+                if (response) {
+                    this.messages.push({
+                        content: response,
+                        type: 'ai',
+                        id: Date.now()
+                    });
+                    console.log('LLM响应内容:', response);
+                    // AI回复后也进行全面的情绪检测
+                    this.runComprehensiveEmotionCheck();
+                }
+                else {
+                    console.warn('LLM响应中未找到response_text或其为空:', res);
+                    uni.showToast({ title: 'AI响应内容为空', icon: 'none', duration: 2000 });
+                }
+            })
+                .catch(err => {
+                console.error('LLM API调用失败，捕获到错误:', err);
+                uni.hideLoading(); // 提前隐藏loading
+                // 打印完整的错误对象，确保能看到所有细节
+                console.error('LLM请求失败的完整错误信息:', JSON.stringify(err, null, 2));
+                let errorMessage = 'AI服务暂时不可用';
+                if (err) {
+                    if (err.message) {
+                        errorMessage = err.message;
+                    }
+                    // 尝试从不同的错误结构中提取详细信息
+                    if (err.detail) {
+                        if (typeof err.detail === 'string') {
+                            errorMessage += `: ${err.detail}`;
+                        }
+                        else if (err.detail.errMsg) { // 针对uni.request的errMsg
+                            errorMessage += `: ${err.detail.errMsg}`;
+                        }
+                        else if (Array.isArray(err.detail) && err.detail.length > 0 && err.detail[0].msg) {
+                            errorMessage += `: ${err.detail[0].msg}`;
+                        }
+                    }
+                }
+                uni.showToast({ title: errorMessage, icon: 'none', duration: 4000 });
+            })
+                .finally(() => {
+                console.log('LLM API调用结束，执行 finally 块');
+                this.$nextTick(() => {
+                    this.scrollToBottom();
+                    this.loading = false;
+                    setTimeout(() => { this.animating = false; }, 300);
+                });
+            });
+        },
+        // 处理输入框点击
+        handleInputClick() {
+            // 简化的输入框点击处理，根据实际需要扩展
+        },
+        // 滚动到底部 - 使用scroll-view的滚动特性
+        scrollToBottom() {
+            setTimeout(() => {
+                const query = uni.createSelectorQuery().in(this);
+                query.selectAll('.chat-box view').boundingClientRect(data => {
+                    if (data && data.length > 0) {
+                        this.scrollTop = 10000;
+                    }
+                }).exec();
+            }, 100);
+        },
+        // 关闭情绪检测弹窗
+        closeEmotionModal() {
+            this.showEmotionModal = false;
+        },
+        // 开始情绪检测
+        startEmotionDetection() {
+            this.closeEmotionModal();
+            uni.navigateTo({
+                url: '/pages/emotion-detect/emotion-detect'
+            });
+        },
+        onSettingTap() {
+            uni.showToast({ title: '设置功能开发中...', icon: 'none' });
+        }
+    }
+});
+export default __sfc__;
+const GenAppStyles = [];

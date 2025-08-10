@@ -1,0 +1,666 @@
+<template>
+	<view class="container">
+		<!-- 返回按钮 -->
+		<view class="back-button animate-fade-in" @tap="goBack">
+			<text class="back-icon">←</text>
+			<text class="back-text">返回</text>
+		</view>
+		
+		<!-- 头部 -->
+		<view class="header animate-fade-in">
+			<text class="title">{{ scaleTypeTitle }}分析结果</text>
+		</view>
+		
+		<!-- 未生成分析结果时的界面 -->
+		<view v-if="!showAnalysisContent" class="initial-state animate-fade-in">
+			<text class="initial-text">点击下方按钮生成您的专属分析结果</text>
+			<button 
+				class="generate-button animate-bounce-in"
+				:disabled="loading"
+				@click="generateAnalysis"
+			>
+				{{ loading ? '生成中...' : '生成分析结果' }}
+			</button>
+			<view class="privacy-note animate-fade-in">
+				<text class="privacy-icon">🔒</text>
+				<text class="privacy-text">数据已加密保存，请放心生成</text>
+			</view>
+		</view>
+
+		<!-- 主要内容区域 (生成分析结果后显示) -->
+		<view v-else class="main-content animate-fade-in">
+			<!-- 分析结果摘要 -->
+			<view class="result-summary animate-slide-in" style="--i: 0">
+				<view class="emotion-icon" :class="mainEmotion">
+					<text v-if="mainEmotion === 'happy'" class="emoji">😊</text>
+					<text v-else-if="mainEmotion === 'sad'" class="emoji">😢</text>
+					<text v-else-if="mainEmotion === 'angry'" class="emoji">😠</text>
+					<text v-else-if="mainEmotion === 'anxious'" class="emoji">😰</text>
+					<text v-else class="emoji">😐</text>
+				</view>
+				<text class="emotion-label">{{emotionLabel}}</text>
+			</view>
+			
+			<!-- 评分卡片 -->
+			<view class="score-card animate-slide-in" style="--i: 1">
+				<text class="score-title">情绪健康评分</text>
+				<view class="score-container">
+					<view class="score-number">{{emotionScore}}</view>
+					<view class="score-bar">
+						<view class="score-progress" :style="{width: emotionScore + '%', backgroundColor: scoreColor}"></view>
+					</view>
+				</view>
+				
+				<!-- 评分标签 -->
+				<view class="score-labels">
+					<text class="low-label">低</text>
+					<text class="mid-label">中</text>
+					<text class="high-label">高</text>
+				</view>
+			</view>
+			
+			<!-- 情绪详情 -->
+			<view class="details-card animate-slide-in" style="--i: 2">
+				<text class="details-title">情绪详细分析</text>
+				<text class="details-text">{{analysisText}}</text>
+			</view>
+			
+			<!-- 建议卡片 -->
+			<view class="suggestion-card animate-slide-in" style="--i: 3">
+				<text class="suggestion-title">建议</text>
+				<view v-for="(item, index) in suggestions" :key="index" class="suggestion-item">
+					<text class="suggestion-number">{{index + 1}}</text>
+					<text class="suggestion-text">{{item}}</text>
+				</view>
+			</view>
+			
+			<!-- 底部按钮 -->
+			<view class="bottom-buttons animate-fade-in">
+				<view class="button secondary-button" @tap="shareResult">分享结果</view>
+				<view class="button primary-button" @tap="findProfessional">预约专家</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+export default {
+	data() {
+		return {
+			rawResults: null, // 从questionnaire页面接收的原始量表结果
+			scaleTypeTitle: '', // 量表类型标题，如DASS21或PHQ9
+			showAnalysisContent: false, // 控制是否显示分析结果部分
+			loading: false, // 控制生成按钮的加载状态
+			mainEmotion: 'neutral', // 可以是：happy, sad, angry, anxious, neutral
+			emotionLabel: '平静',
+			emotionScore: 65, // 0-100
+			scoreColor: '#6847c2',
+			analysisText: '点击“生成分析结果”按钮获取报告。',
+			suggestions: []
+		}
+	},
+	onLoad(options) {
+		// 通过EventChannel接收数据
+		const eventChannel = this.getOpenerEventChannel();
+		eventChannel.on('acceptResultDataFromOpenerPage', (data) => {
+			console.log('从问卷页面接收到结果:', data.data);
+			this.rawResults = data.data;
+			
+			// 设置量表类型标题
+			if (this.rawResults.scaleType === 'DASS21') {
+				this.scaleTypeTitle = 'DASS-21';
+			} else if (this.rawResults.scaleType === 'PHQ9') {
+				this.scaleTypeTitle = 'PHQ-9';
+			}
+		});
+	},
+	methods: {
+		goBack() {
+			uni.navigateBack();
+		},
+		
+		// 新增：生成分析结果的方法
+		generateAnalysis() {
+			if (this.loading) return;
+			
+			this.loading = true;
+			uni.showLoading({ title: '正在生成分析报告...', mask: true });
+			
+			// 模拟后端处理时间
+			setTimeout(() => {
+				uni.hideLoading();
+				this.loading = false;
+				this.showAnalysisContent = true; // 显示分析内容
+				this.processAnalysisData(); // 处理并显示模拟数据
+			}, 2000); // 模拟2秒加载时间
+		},
+
+		// 处理分析数据 (现在从rawResults中获取)
+		processAnalysisData() {
+			// 如果rawResults为空，则生成备用数据
+			if (!this.rawResults) {
+				console.warn('未接收到量表结果，生成备用数据。');
+				this.generateFallbackData();
+				return;
+			}
+
+			// 模拟根据量表结果生成分析文本和建议
+			const scaleType = this.rawResults.scaleType;
+			const totalScore = this.rawResults.totalScore;
+
+			let analysisSummary = `您完成了${scaleType}量表，总分为${totalScore}分。\n\n`;
+			let dominantEmotion = 'neutral';
+			let score = 65;
+			let label = '平静';
+			let color = '#6847c2';
+			let generatedSuggestions = [
+				'根据您的回答，建议您关注情绪健康，保持积极心态。',
+				'尝试与信任的人分享您的感受，寻求支持。'
+			];
+
+			if (scaleType === 'DASS21') {
+				// 简化DASS21的评估，真实情况需要更复杂的逻辑
+				if (totalScore >= 30) {
+					dominantEmotion = 'anxious';
+					score = 20;
+					label = '严重焦虑/抑郁/压力';
+					color = '#FF4500';
+					analysisSummary += '您的情绪可能处于较高压力状态，建议寻求专业帮助。\n';
+					generatedSuggestions = [
+						'强烈建议寻求专业心理咨询和评估。',
+						'学习压力管理技巧，如冥想、放松练习。',
+						'确保充足的休息和规律的作息。',
+					];
+				} else if (totalScore >= 15) {
+					dominantEmotion = 'sad';
+					score = 40;
+					label = '中度焦虑/抑郁/压力';
+					color = '#FFD700';
+					analysisSummary += '您的情绪可能存在一定程度的波动，建议保持关注。\n';
+					generatedSuggestions = [
+						'尝试与亲友交流，分享您的感受。',
+						'进行适度的体育锻炼，有助于改善情绪。',
+						'保持健康的生活习惯，充足睡眠和均衡饮食。',
+					];
+				} else {
+					dominantEmotion = 'happy';
+					score = 80;
+					label = '情绪良好';
+					color = '#32CD32';
+					analysisSummary += '您目前情绪状态良好，请继续保持。\n';
+					generatedSuggestions = [
+						'继续保持积极乐观的心态。',
+						'可以将您的好心情分享给身边的人。',
+						'保持健康的生活习惯，享受生活。',
+					];
+				}
+			} else if (scaleType === 'PHQ9') {
+				// 简化PHQ-9的评估，真实情况需要更复杂的逻辑
+				if (totalScore >= 15) {
+					dominantEmotion = 'sad';
+					score = 25;
+					label = '中度至重度抑郁';
+					color = '#DC143C';
+					analysisSummary += '您的抑郁症状可能较明显，建议及时寻求专业帮助。\n';
+					generatedSuggestions = [
+						'强烈建议咨询心理健康专业人士，进行进一步评估和干预。',
+						'避免孤立，尝试与支持您的朋友或家人保持联系。',
+						'培养一些兴趣爱好，分散注意力，缓解负面情绪。',
+					];
+				} else if (totalScore >= 5) {
+					dominantEmotion = 'anxious';
+					score = 50;
+					label = '轻度抑郁';
+					color = '#FF8C00';
+					analysisSummary += '您可能存在轻度抑郁症状，建议您保持关注和自我调节。\n';
+					generatedSuggestions = [
+						'尝试调整作息，保证充足的睡眠。',
+						'进行规律的户外活动，如散步、跑步，接触自然。',
+						'学习情绪管理技巧，如冥想、放松训练。',
+					];
+				} else {
+					dominantEmotion = 'happy';
+					score = 90;
+					label = '无抑郁症状';
+					color = '#008000';
+					analysisSummary += '您没有明显的抑郁症状，情绪状态良好。\n';
+					generatedSuggestions = [
+						'继续保持积极健康的生活方式。',
+						'定期进行心理健康自查，关注情绪变化。',
+					];
+				}
+			}
+
+			this.mainEmotion = dominantEmotion;
+			this.emotionLabel = label;
+			this.emotionScore = score;
+			this.scoreColor = color;
+			this.analysisText = analysisSummary + '\n\n以下是您的详细答案：\n' + JSON.stringify(this.rawResults.answers, null, 2);
+			this.suggestions = generatedSuggestions;
+		},
+		
+		// 生成备用数据（当没有接收到真实数据时）
+		generateFallbackData() {
+			this.scaleTypeTitle = '未知量表';
+			this.mainEmotion = 'neutral';
+			this.emotionLabel = '平静';
+			this.emotionScore = 60;
+			this.scoreColor = '#808080';
+			this.analysisText = '未能加载具体的分析结果。请确保已完成量表测评。\n\n如果问题持续存在，请联系技术支持。';
+			this.suggestions = [
+				'请返回量表页面完成测评。',
+				'如果您已完成测评，请尝试刷新页面。'
+			];
+		},
+		
+		shareResult() {
+			uni.showToast({
+				title: '分享功能开发中',
+				icon: 'none'
+			})
+		},
+		
+		findProfessional() {
+			uni.showToast({
+				title: '预约功能开发中',
+				icon: 'none'
+			})
+		}
+	}
+}
+</script>
+
+<style scoped>
+.container {
+	min-height: 100vh;
+	background-color: #050410;
+	background-image:
+		radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0),
+		linear-gradient(-45deg, #4f00bc, #7d1b7e, #0f0c29, #2a0845, #12c2e9);
+	background-size:
+		4px 4px,
+		400% 400%;
+	animation: gradient-bg 8s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 40rpx 30rpx;
+	box-sizing: border-box;
+	position: relative;
+	overflow-y: auto;
+	padding-bottom: 100rpx; /* 底部留白，避免内容被tabbar遮挡 */
+}
+
+.container::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background:
+		radial-gradient(circle at 20% 30%, rgba(79, 0, 188, 0.3) 0%, transparent 50%),
+		radial-gradient(circle at 80% 70%, rgba(18, 194, 233, 0.3) 0%, transparent 50%);
+	animation: pulse-bg 15s ease-in-out infinite alternate;
+	z-index: 0;
+}
+
+@keyframes gradient-bg {
+	0% {
+		background-position: 0% 50%;
+	}
+
+	50% {
+		background-position: 100% 50%;
+	}
+
+	100% {
+		background-position: 0% 50%;
+	}
+}
+
+@keyframes pulse-bg {
+	0% {
+		opacity: 0.5;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.7;
+		transform: scale(1.05);
+	}
+	100% {
+		opacity: 0.5;
+		transform: scale(1);
+	}
+}
+
+.back-button {
+	position: absolute;
+	top: 60rpx;
+	left: 30rpx;
+	display: flex;
+	align-items: center;
+	color: white;
+	font-size: 30rpx;
+	z-index: 10;
+	background: rgba(255, 255, 255, 0.1);
+	padding: 10rpx 20rpx;
+	border-radius: 20rpx;
+	backdrop-filter: blur(5rpx);
+	-webkit-backdrop-filter: blur(5rpx);
+	transition: all 0.3s ease;
+	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.2);
+}
+
+.back-button:active {
+	transform: scale(0.95);
+	opacity: 0.8;
+	box-shadow: 0 1rpx 5rpx rgba(0, 0, 0, 0.3);
+}
+
+.back-icon {
+	font-size: 40rpx;
+	margin-right: 10rpx;
+}
+
+.back-text {
+	font-size: 30rpx;
+}
+
+.header {
+	width: 100%;
+	padding: 20rpx;
+	margin-bottom: 40rpx;
+	display: flex;
+	justify-content: center;
+	position: relative;
+	z-index: 1;
+}
+
+.title {
+	color: white;
+	font-size: 36rpx;
+	text-align: center;
+	text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
+}
+
+/* 初始状态样式 */
+.initial-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 50vh;
+	width: 90%;
+	max-width: 600rpx;
+	background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+	border-radius: 30rpx;
+	padding: 60rpx 40rpx;
+	box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.5);
+	text-align: center;
+	margin-top: 100rpx;
+	backdrop-filter: blur(10rpx);
+	-webkit-backdrop-filter: blur(10rpx);
+	border: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.initial-text {
+	font-size: 36rpx;
+	color: #fff;
+	margin-bottom: 60rpx;
+	text-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.3);
+}
+
+.generate-button {
+	background: linear-gradient(90deg, #6b5b95, #4f00bc); /* 紫色渐变 */
+	color: white;
+	padding: 30rpx 60rpx;
+	border-radius: 20rpx;
+	font-size: 36rpx;
+	font-weight: bold;
+	box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.4);
+	transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	border: none;
+	outline: none;
+	position: relative; /* 用于伪元素 */
+	overflow: hidden;
+}
+
+.generate-button::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 100%;
+	height: 100%;
+	background: rgba(255, 255, 255, 0.2); /* 闪光效果 */
+	transform: skewX(-20deg);
+	transition: all 0.7s;
+}
+
+.generate-button:hover::before {
+	left: 100%;
+}
+
+.generate-button:active {
+	transform: scale(0.95);
+	box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.5);
+	opacity: 0.9;
+}
+
+.generate-button:disabled {
+	background: #888; /* 灰色 */
+	cursor: not-allowed;
+	box-shadow: none;
+	transform: scale(1);
+	opacity: 0.7;
+}
+
+.privacy-note {
+	display: flex;
+	align-items: center;
+	margin-top: 50rpx;
+	color: #ccc;
+	font-size: 26rpx;
+}
+
+.privacy-icon {
+	margin-right: 10rpx;
+}
+
+.main-content {
+	width: 100%;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: relative;
+	z-index: 1;
+	gap: 30rpx; /* 卡片之间的间距 */
+}
+
+.result-summary, .score-card, .details-card, .suggestion-card {
+	width: 92%;
+	max-width: 650rpx;
+	background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98));
+	border-radius: 25rpx;
+	padding: 40rpx;
+	box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.4);
+	text-align: center;
+	position: relative;
+	z-index: 1;
+}
+
+.emotion-icon {
+	font-size: 100rpx;
+	margin-bottom: 20rpx;
+	animation: bounce-in 0.8s ease-out;
+}
+
+.emotion-label {
+	font-size: 40rpx;
+	font-weight: bold;
+	color: #333;
+	text-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.1);
+}
+
+.score-title, .details-title, .suggestion-title {
+	font-size: 34rpx;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 20rpx;
+	padding-bottom: 10rpx;
+	border-bottom: 1rpx solid #eee;
+}
+
+.score-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+
+.score-number {
+	font-size: 80rpx;
+	font-weight: bold;
+	color: #4f00bc;
+	margin-bottom: 10rpx;
+	text-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.2);
+}
+
+.score-bar {
+	width: 100%;
+	height: 20rpx;
+	background-color: #eee;
+	border-radius: 10rpx;
+	overflow: hidden;
+}
+
+.score-progress {
+	height: 100%;
+	border-radius: 10rpx;
+	transition: width 1s ease-out;
+	animation: progress-fill 1s ease-out;
+}
+
+@keyframes progress-fill {
+	from { width: 0%; }
+	to { width: var(--score-width); }
+}
+
+.score-labels {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+	font-size: 24rpx;
+	color: #666;
+	margin-top: 5rpx;
+}
+
+.details-text {
+	font-size: 28rpx;
+	color: #555;
+	line-height: 1.6;
+	text-align: left;
+	white-space: pre-wrap; /* 保留换行符 */
+}
+
+.suggestion-item {
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 15rpx;
+	text-align: left;
+}
+
+.suggestion-number {
+	background-color: #6b5b95;
+	color: white;
+	border-radius: 50%;
+	width: 40rpx;
+	height: 40rpx;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 24rpx;
+	font-weight: bold;
+	margin-right: 15rpx;
+	flex-shrink: 0;
+}
+
+.suggestion-text {
+	font-size: 28rpx;
+	color: #555;
+	line-height: 1.6;
+	flex: 1;
+}
+
+.bottom-buttons {
+	display: flex;
+	justify-content: space-around;
+	width: 92%;
+	max-width: 650rpx;
+	margin-top: 40rpx;
+	margin-bottom: 60rpx;
+	gap: 20rpx;
+}
+
+.button {
+	flex: 1;
+	padding: 25rpx 0;
+	border-radius: 15rpx;
+	font-size: 32rpx;
+	font-weight: bold;
+	text-align: center;
+	box-shadow: 0 5rpx 15rpx rgba(0, 0, 0, 0.3);
+	transition: all 0.3s ease;
+}
+
+.button:active {
+	transform: scale(0.95);
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.4);
+	opacity: 0.9;
+}
+
+.primary-button {
+	background: linear-gradient(90deg, #4f00bc, #7d1b7e);
+	color: white;
+}
+
+.secondary-button {
+	background: linear-gradient(90deg, #888, #666);
+	color: white;
+}
+
+/* 动画 */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+@keyframes slide-in {
+	from { 
+		opacity: 0;
+		transform: translateY(20rpx);
+	}
+	to { 
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.animate-slide-in {
+	animation: slide-in 0.6s ease-out forwards;
+	animation-delay: calc(var(--i) * 0.1s); /* 延迟动画 */
+}
+
+@keyframes bounce-in {
+  0% { opacity: 0; transform: scale(0.5); }
+  70% { opacity: 1; transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+</style> 

@@ -1,0 +1,56 @@
+import { createSSRApp } from 'vue'
+import App from './App.uvue'
+
+// 确保API正确初始化
+let isAppReady = false;
+
+export function createApp() {
+	const app = createSSRApp(App);
+	
+	// 提供全局状态管理的简单方法
+	app.config.globalProperties.$global = {
+		isApiInitialized: false,
+		apiReadyCallbacks: [],
+		
+		// 注册API就绪回调
+		onApiReady(callback) {
+			if (this.isApiInitialized) {
+				callback();
+			} else {
+				this.apiReadyCallbacks.push(callback);
+			}
+		},
+		
+		// 标记API已初始化并触发回调
+		markApiAsInitialized() {
+			this.isApiInitialized = true;
+			
+			// 触发所有等待的回调
+			this.apiReadyCallbacks.forEach(callback => {
+				try {
+					callback();
+				} catch (err) {
+					console.error('API就绪回调执行错误:', err);
+				}
+			});
+			
+			// 清空回调列表
+			this.apiReadyCallbacks = [];
+		}
+	};
+	
+	return {
+		app,
+		// 初始化完成时的回调
+		onLaunch() {
+			console.log('App onLaunch');
+			isAppReady = true;
+			
+			// 延迟一秒确保uni API加载完成
+			setTimeout(() => {
+				app.config.globalProperties.$global.markApiAsInitialized();
+				console.log('标记API已初始化');
+			}, 1500);
+		}
+	}
+}

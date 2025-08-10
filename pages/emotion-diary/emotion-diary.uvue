@@ -1,0 +1,709 @@
+<template>
+  <view class="container">
+    <view class="header">
+      <text class="title">情绪日记</text>
+      <text class="subtitle">记录您的心情和烦恼</text>
+    </view>
+
+    <view class="diary-card animate-fade-in">
+      <text class="card-title">今天您感觉如何？</text>
+      <view class="emotion-rating">
+        <view v-for="n in 5" :key="n" 
+              :class="['rating-star', { 'selected': emotionRating >= n }]"
+              @click="selectRating(n)">
+          {{ n }}
+        </view>
+      </view>
+      <text class="rating-label">{{ ratingText }}</text>
+
+      <text class="card-title">写下您的烦心事：</text>
+      <textarea 
+        class="diary-textarea"
+        placeholder="今天有什么让您烦恼的事情吗？或者想分享一些开心的事？"
+        v-model="diaryContent"
+        maxlength="-1" />
+
+      <button class="save-button" @click="saveDiaryEntry">
+        <uni-icons type="upload-filled" size="24" color="#fff"></uni-icons>
+        <text>保存日记</text>
+      </button>
+    </view>
+
+    <view class="chart-card animate-fade-in">
+      <text class="card-title">近七天情绪趋势</text>
+      <view class="chart-placeholder">
+        <text>情绪趋势图表</text>
+        <canvas canvas-id="emotionChart" id="emotionChart" class="charts"></canvas>
+      </view>
+    </view>
+
+    <view class="diary-list-card animate-fade-in">
+      <text class="card-title">过往日记</text>
+      <scroll-view scroll-y class="diary-scroll-view">
+        <view v-for="entry in sortedDiaryEntries" :key="entry.id" class="diary-entry">
+          <view class="entry-header">
+            <text class="entry-date">{{ entry.date }}</text>
+            <text class="entry-rating">心情评分: {{ entry.rating }} / 5</text>
+          </view>
+          <text class="entry-content">{{ entry.content }}</text>
+        </view>
+        <view v-if="sortedDiaryEntries.length === 0" class="no-entries">
+          <text>暂无日记记录。</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="ai-chat-card animate-fade-in">
+      <text class="card-title">AI 情绪分析与鼓励</text>
+      <view class="chat-display">
+        <scroll-view scroll-y class="chat-scroll-view">
+          <view v-for="message in chatMessages" :key="message.id" :class="['chat-message', message.role]">
+            <text>{{ message.text }}</text>
+          </view>
+        </scroll-view>
+      </view>
+      <view class="chat-input-area">
+        <input class="chat-input" v-model="userQuery" placeholder="想和AI聊聊最近的情绪吗？" @confirm="sendToAI" />
+        <button class="send-button" @click="sendToAI">
+          <uni-icons type="paperplane-filled" size="24" color="#fff"></uni-icons>
+        </button>
+      </view>
+    </view>
+
+    <view class="control-buttons">
+      <button class="control-button exit-button" @click="exitEmotionDiary">
+        <uni-icons type="undo-alt" size="24" color="#fff"></uni-icons>
+        <text>退出</text>
+      </button>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { ref, computed, onUnmounted, onMounted } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
+
+const diaryContent = ref('');
+const emotionRating = ref(0); // 1-5 scale
+const diaryEntries = ref<Array<{ id: number; date: string; content: string; rating: number }>>([]);
+const userQuery = ref('');
+const chatMessages = ref<Array<{ id: number; role: 'user' | 'ai'; text: string }>>([]);
+
+const ratingText = computed(() => {
+  if (emotionRating.value === 0) return '请选择心情评分';
+  const texts = ['非常差', '有点差', '一般', '比较好', '非常好'];
+  return texts[emotionRating.value - 1];
+});
+
+// Computed property to sort entries by date, newest first
+const sortedDiaryEntries = computed(() => {
+  return [...diaryEntries.value].sort((a, b) => new Date(b.date) - new Date(a.date));
+});
+
+onLoad(() => {
+  console.log('Emotion Diary Page: onLoad triggered.');
+  loadDiaryEntries();
+});
+
+onMounted(() => {
+  console.log('Emotion Diary Page: onMounted triggered.');
+  // Chart rendering should ideally be triggered after diary entries are loaded
+  // For now, it's called here, but loadDiaryEntries will also trigger AI analysis.
+  renderChart();
+});
+
+function selectRating(rating) {
+  emotionRating.value = rating;
+  console.log(`Selected rating: ${rating}`);
+}
+
+async function saveDiaryEntry() {
+  if (!diaryContent.value || emotionRating.value === 0) {
+    uni.showToast({
+      title: '请填写日记内容并选择心情评分',
+      icon: 'none',
+      duration: 2000
+    });
+    return;
+  }
+
+  const entry = {
+    id: Date.now(),
+    date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    content: diaryContent.value,
+    rating: emotionRating.value
+  };
+
+  try {
+    // Retrieve existing entries or initialize empty array
+    let existingEntries = [];
+    try {
+      const res = await uni.getStorage({
+        key: 'emotionDiaryEntries'
+      });
+      if (res.data) {
+        existingEntries = JSON.parse(res.data);
+      }
+    } catch (e) {
+      console.log('No existing emotion diary entries found.');
+    }
+    
+    existingEntries.push(entry);
+
+    await uni.setStorage({
+      key: 'emotionDiaryEntries',
+      data: JSON.stringify(existingEntries)
+    });
+
+    console.log('日记已保存:', entry);
+    uni.showToast({
+      title: '日记保存成功！',
+      icon: 'success',
+      duration: 2000
+    });
+
+    // Clear form
+    diaryContent.value = '';
+    emotionRating.value = 0;
+    
+    // Reload entries and render chart after saving
+    loadDiaryEntries();
+
+  } catch (error) {
+    console.error('日记保存失败:', error);
+    uni.showToast({
+      title: '日记保存失败',
+      icon: 'error',
+      duration: 2000
+    });
+  }
+}
+
+async function loadDiaryEntries() {
+  try {
+    const res = await uni.getStorage({
+      key: 'emotionDiaryEntries'
+    });
+    if (res.data) {
+      diaryEntries.value = JSON.parse(res.data);
+      console.log('Loaded diary entries:', diaryEntries.value);
+      // After loading, initiate AI analysis and render chart
+      triggerAIAnalysis(); 
+      renderChart(); // Ensure chart is rendered after data is loaded
+    }
+  } catch (e) {
+    console.log('No emotion diary entries found.');
+    diaryEntries.value = [];
+    chatMessages.value = []; // Clear chat if no entries
+    triggerAIAnalysis(); // Still trigger AI to show 'no entries' message
+  }
+}
+
+function renderChart() {
+  // This is a placeholder function for charting.
+  // You would typically use a Uni-App compatible charting library here (e.g., ucharts).
+  console.log('Chart rendering logic would go here.');
+  // Example data for chart (replace with actual processed diaryEntries data)
+  const chartData = {
+    categories: [], // Dates
+    series: [{
+      name: '心情评分',
+      data: [] // Emotion ratings
+    }]
+  };
+
+  // Process diary entries for chart (example: last 7 days)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  
+  const recentEntries = diaryEntries.value.filter(entry => new Date(entry.date) >= sevenDaysAgo)
+                                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  recentEntries.forEach(entry => {
+    chartData.categories.push(entry.date);
+    chartData.series[0].data.push(entry.rating);
+  });
+
+  if (chartData.categories.length > 0) {
+    console.log('Chart data prepared:', chartData);
+    // uni.createCanvasContext('emotionChart', this); // This line is for ucharts or similar
+    // Call your charting library's render function here
+  }
+}
+
+async function triggerAIAnalysis() {
+  if (diaryEntries.value.length === 0) {
+    chatMessages.value.push({
+      id: Date.now(),
+      role: 'ai',
+      text: '您还没有记录任何日记，快去写下第一篇日记吧！'
+    });
+    return;
+  }
+
+  // Simulate AI analysis based on recent entries
+  const recentRatings = diaryEntries.value.slice(-7).map(entry => entry.rating); // Last 7 ratings
+  const averageRating = recentRatings.reduce((sum, r) => sum + r, 0) / recentRatings.length;
+
+  let aiResponse = '根据您最近的心情记录，';
+  if (averageRating >= 4) {
+    aiResponse += '您的情绪状况非常好，请继续保持积极乐观的心态！';
+  } else if (averageRating >= 3) {
+    aiResponse += '您的情绪状况总体良好，可以尝试更多积极的活动来提升心情。';
+  } else if (averageRating >= 2) {
+    aiResponse += '您的情绪状况近期可能有些波动，请多关注自己的感受，尝试放松练习或与朋友交流。'
+  } else {
+    aiResponse += '您的情绪状况可能有些低落，请不要独自承受，可以尝试深呼吸练习或寻求专业帮助。';
+  }
+
+  chatMessages.value.push({
+    id: Date.now() + 1,
+    role: 'ai',
+    text: aiResponse
+  });
+}
+
+async function sendToAI() {
+  if (!userQuery.value.trim()) return;
+
+  const userText = userQuery.value.trim();
+  chatMessages.value.push({
+    id: Date.now(),
+    role: 'user',
+    text: userText
+  });
+  userQuery.value = ''; // Clear input
+
+  // Simulate AI response (replace with actual LLM integration)
+  const aiResponse = `您好！您刚才提到了：“${userText}”。我是一个AI助手，目前还无法直接连接到大型语言模型进行实时对话。但是，我很乐意为您提供一些通用的鼓励或建议。`;
+  chatMessages.value.push({
+    id: Date.now() + 1,
+    role: 'ai',
+    text: aiResponse
+  });
+  // In a real scenario, you'd call an API here:
+  // const llmResponse = await request.chatWithLLM(userText, diaryEntries.value);
+  // chatMessages.value.push({ id: Date.now() + 2, role: 'ai', text: llmResponse });
+}
+
+function exitEmotionDiary() {
+  console.log('Exit Emotion Diary button clicked. Switching tab to pages/pages3/pages3');
+  uni.switchTab({
+    url: '/pages/pages3/pages3'
+  });
+}
+
+onUnmounted(() => {
+  console.log('onUnmounted called for Emotion Diary page');
+});
+</script>
+
+<style scoped>
+.container {
+  min-height: 100vh;
+  background-color: #03020d;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0),
+    linear-gradient(-45deg, #13022d, #3b0c60, #0c0c29, #2a0845, #09627c);
+  background-size:
+    4px 4px,
+    400% 400%;
+  animation: gradient-bg 15s ease infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 30rpx;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(79, 0, 188, 0.4) 0%, transparent 70%),
+    radial-gradient(circle at 80% 70%, rgba(18, 194, 233, 0.4) 0%, transparent 70%);
+  animation: pulse-bg 15s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.particle {
+  position: absolute;
+  width: 4rpx;
+  height: 4rpx;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: float-particle 15s linear infinite;
+  box-shadow: 0 0 5rpx rgba(255, 255, 255, 0.8);
+}
+
+@keyframes gradient-bg {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse-bg {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+}
+
+.header {
+  width: 100%;
+  padding: 20rpx;
+  margin-bottom: 40rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  color: white;
+  font-size: 60rpx;
+  font-weight: bold;
+  text-align: center;
+  text-shadow: 0 5rpx 10rpx rgba(0, 0, 0, 0.6);
+  margin-bottom: 20rpx;
+  letter-spacing: 3rpx;
+}
+
+.subtitle {
+  color: #c0c0c0;
+  font-size: 36rpx;
+  text-align: center;
+  text-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.4);
+}
+
+.diary-card,
+.chart-card,
+.diary-list-card,
+.ai-chat-card {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 30rpx;
+  padding: 40rpx;
+  width: 90%;
+  max-width: 600rpx;
+  box-shadow: 0 0 50rpx rgba(79, 0, 188, 0.5);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx; /* Added for spacing between cards */
+}
+
+.card-title {
+  color: white;
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-bottom: 30rpx;
+  text-align: center;
+}
+
+.emotion-rating {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.rating-star {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 36rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer; /* Not really applicable in Uni-App, but good practice */
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.rating-star:hover { /* Not really applicable in Uni-App, but good practice */
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.rating-star.selected {
+  background-color: #4CAF50; /* Green for selected */
+  transform: scale(1.1);
+  box-shadow: 0 0 15rpx rgba(76, 175, 80, 0.8);
+}
+
+.rating-label {
+  color: #e0e0e0;
+  font-size: 28rpx;
+  margin-bottom: 40rpx;
+}
+
+.diary-textarea {
+  width: calc(100% - 40rpx); /* Account for padding */
+  height: 250rpx;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 20rpx;
+  padding: 20rpx;
+  color: white;
+  font-size: 28rpx;
+  line-height: 1.5;
+  margin-bottom: 40rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.save-button {
+  background: linear-gradient(145deg, #4CAF50, #8bc34a);
+  color: white;
+  padding: 25rpx 50rpx;
+  border-radius: 25rpx;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.4), inset 0 0 8rpx rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: none;
+  outline: none;
+  /* cursor: pointer; */ /* Not applicable in Uni-App */
+}
+
+.save-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.5), inset 0 0 4rpx rgba(0, 0, 0, 0.3);
+  opacity: 0.9;
+}
+
+.chart-placeholder {
+  width: 100%;
+  height: 400rpx;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 20rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #ccc;
+  font-size: 28rpx;
+  margin-bottom: 30rpx;
+}
+
+.charts {
+  width: 100%;
+  height: 100%;
+}
+
+.diary-scroll-view {
+  width: 100%;
+  max-height: 400rpx; /* Limit height for scrollable area */
+  overflow-y: auto;
+}
+
+.diary-entry {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 20rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.entry-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+
+.entry-date {
+  color: #e0e0e0;
+  font-size: 24rpx;
+}
+
+.entry-rating {
+  color: #4CAF50;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.entry-content {
+  color: white;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+.no-entries {
+  color: #ccc;
+  font-size: 28rpx;
+  text-align: center;
+  padding: 20rpx;
+}
+
+.chat-display {
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 20rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+  max-height: 300rpx; /* Limit height for chat scroll */
+  overflow-y: auto;
+}
+
+.chat-message {
+  margin-bottom: 15rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-message.user {
+  align-items: flex-end;
+}
+
+.chat-message.ai {
+  align-items: flex-start;
+}
+
+.chat-message text {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 15rpx 25rpx;
+  border-radius: 20rpx;
+  max-width: 80%;
+}
+
+.chat-message.user text {
+  background-color: rgba(79, 0, 188, 0.5);
+}
+
+.chat-input-area {
+  width: 100%;
+  display: flex;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+
+.chat-input {
+  flex: 1;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 25rpx;
+  padding: 15rpx 25rpx;
+  color: white;
+  font-size: 28rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.send-button {
+  background: linear-gradient(145deg, #12c2e9, #4CAF50);
+  color: white;
+  padding: 15rpx 25rpx;
+  border-radius: 25rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: none;
+  outline: none;
+  /* cursor: pointer; */ /* Not applicable in Uni-App */
+}
+
+.send-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.4);
+  opacity: 0.9;
+}
+
+.control-buttons {
+  margin-top: 60rpx;
+  display: flex;
+  gap: 60rpx;
+  z-index: 1;
+}
+
+.control-button {
+  background: linear-gradient(145deg, #5e00d9, #8c6fe8);
+  color: white;
+  padding: 30rpx 60rpx;
+  border-radius: 30rpx;
+  font-size: 36rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  box-shadow: 0 10rpx 25rpx rgba(0, 0, 0, 0.5), inset 0 0 10rpx rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: none;
+  outline: none;
+  /* cursor: pointer; */ /* Not applicable in Uni-App */
+}
+
+.control-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 5rpx 15rpx rgba(0, 0, 0, 0.6), inset 0 0 5rpx rgba(0, 0, 0, 0.3);
+  opacity: 0.9;
+}
+
+.control-button.exit-button {
+  background: linear-gradient(145deg, #a0a0a0, #cccccc);
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(30rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+}
+
+@keyframes pulse-wrapper {
+  0% { transform: scale(1); box-shadow: 0 0 60rpx rgba(79, 0, 188, 0.6); }
+  50% { transform: scale(1.03); box-shadow: 0 0 90rpx rgba(18, 194, 233, 0.8); }
+  100% { transform: scale(1); box-shadow: 0 0 60rpx rgba(79, 0, 188, 0.6); }
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(100vh) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20vh) translateX(20vw);
+    opacity: 0;
+  }
+}
+</style> 

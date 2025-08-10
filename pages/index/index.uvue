@@ -1,0 +1,876 @@
+		<!-- 8.11 -->
+<template>
+  <view class="container">
+		<!-- 顶部温馨欢迎区 -->
+		<view class="welcome-header">
+			<view class="welcome-card">
+				<view class="welcome-icon">🌈</view>
+				<view class="welcome-texts">
+					<text class="welcome-title">Hi，我是Ano，你的心理健康助手</text>
+					<text class="welcome-tip">欢迎来到你自己的情感宇宙</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 粒子效果层 -->
+		<view class="particles">
+			<view v-for="i in 20" :key="i" class="particle"></view>
+		</view>
+
+		<view class="top-section">
+			<view class="face-container">
+				<view class="eye"></view>
+				<view class="eye"></view>
+			</view>
+		</view>
+
+		<!-- 聊天区卡片 -->
+		<view class="chat-card">
+			<scroll-view class="chat-box" scroll-y="true" :scroll-top="scrollTop" :scroll-with-animation="true">
+				<view class="ai-message" style="animation-duration: 0.3s">
+					<view class="chat-message">你好！你今天过的还好吗？或许你的心情难以用言语形容，那让我来给你做一个心理检测怎么样！</view>
+				</view>
+				<view v-for="(message, index) in messages" :key="message.id" :class="message.type === 'user' ? 'user-message' : 'ai-message'">
+					<view class="chat-message">{{ message.content }}</view>
+				</view>
+				<view v-if="loading" class="ai-message loading-message">
+					<view class="loading-dots">
+						<view class="dot"></view>
+						<view class="dot"></view>
+						<view class="dot"></view>
+					</view>
+				</view>
+			</scroll-view>
+		</view>
+
+		<!-- 输入区卡片 -->
+		<view class="input-card">
+			<view class="input-inner">
+				<input class="chat-input" type="text" v-model="userInput" @click="handleInputClick" confirm-type="send" @confirm="handleSend" :disabled="loading" />
+				<view class="send-button" @tap="handleSend" :class="{ 'disabled': loading }">发送</view>
+			</view>
+		</view>
+		
+		<!-- 情绪检测推荐弹窗 -->
+		<view v-if="showEmotionModal" class="emotion-modal" @touchmove.stop.prevent>
+			<view class="emotion-modal-content">
+				<view class="modal-close" @tap="closeEmotionModal">×</view>
+				<view class="modal-header">
+					<text class="modal-title">AI情绪分析</text>
+				</view>
+				<view class="modal-body">
+					<text class="modal-text">通过分析您的对话，我们发现您最近的情绪可能波动较大。</text>
+					<text class="modal-text">想要进行更精确的情绪分析吗？</text>
+					<text class="modal-description">我们将通过语音和面部表情来综合评估您的情绪状态，帮助您更好地了解自己。</text>
+					<view class="modal-icon">
+						<view class="pulse-circle"></view>
+					</view>
+				</view>
+				<view class="modal-footer">
+					<view class="modal-button cancel" @tap="closeEmotionModal">稍后再说</view>
+					<view class="modal-button primary" @tap="startEmotionDetection">立即检测</view>
+				</view>
+			</view>
+    </view>
+    <!-- 底部隐私说明卡片 -->
+    <view class="privacy-footer-card">
+      <text class="privacy-icon">🔒</text>
+      <text class="privacy-text">你的秘密，AI安全守护，聊天内容绝不外泄！🤫</text>
+    </view>
+    <!-- 右下角悬浮设置按钮 -->
+    <view class="fab-setting" @tap="onSettingTap">
+      <text class="fab-icon">⚙️</text>
+    </view>
+  </view>
+</template>
+
+<script>
+const negativeKeywords = [
+  "难受", "心情不好", "自杀", "焦虑", "恐慌", "抑郁", "不想活", "压力大", "很累", "绝望", "无助", "烦躁",
+  "痛苦", "崩溃", "想哭", "不开心", "伤心", "失眠", "没意义", "想放弃", "没人懂", "孤独", "害怕", "恐惧",
+  "烦", "累", "不想说话", "不想动", "不想见人", "不想上班", "不想上学", "没动力", "没希望", "想死", "想离开",
+  "烦闷", "心累", "心痛", "绝望", "麻木", "无感", "无聊", "无助", "无望", "不想活了", "撑不住", "撑不下去",
+  "情绪低落", "消沉", "郁闷", "闷闷不乐", "萎靡不振", "沮丧", "悲伤", "哀伤", "愁苦", "失落", "灰心", "失望",
+  "愤懑", "恼怒", "火大", "暴躁", "狂躁", "怨恨", "厌恶", "憎恨", "反感", "不满", "气愤",
+  "紧张", "担忧", "忧虑", "不安", "手足无措", "心烦意乱", "忐忑", "惊恐", "骇然", "毛骨悚然", "不寒而栗",
+  "寂寞", "孤单", "空虚", "失落", "无聊", "空虚", "迷茫", "彷徨", "困惑",
+  "疲惫", "精疲力尽", "身心俱疲", "筋疲力尽", "虚弱", "乏力", "力不从心", "透支",
+  "厌世", "生无可恋", "了无生趣", "苟延残喘", "行尸走肉", "自我否定", "自我怀疑", "无地自容", "羞愧", "内疚",
+  "逃避", "躲避", "退缩", "不敢面对", "不敢想", "不想提", "忘不掉", "放不下", "走不出来"
+];
+
+import request from '../../utils/request.js'
+
+let resizeTimer = null; // 用于防抖的定时器
+
+export default {
+	data() {
+		return {
+			messages: [] as Array<{ content: string; type: 'user' | 'ai'; id: number }>,
+			userInput: '',
+			keyboardHeight: 0,
+			animating: false,
+			scrollTop: 0,
+			loading: false,
+			messageCount: 0,
+			showEmotionModal: false,
+			sessionId: 'user_' + Date.now(), // 为每个用户创建唯一的会话ID
+			lastShowPromptTime: 0, // 上次提示情绪扫描的时间
+			isLandscape: false, // 是否横屏（水平放置）
+            windowWidth: 0, // 窗口宽度
+            windowHeight: 0, // 窗口高度
+		}
+	},
+    onLoad() {
+        console.log("页面 onLoad: 初始化屏幕尺寸和监听器");
+        const systemInfo = uni.getSystemInfoSync();
+        this.windowWidth = systemInfo.windowWidth;
+        this.windowHeight = systemInfo.windowHeight;
+        this.checkOrientation();
+        // 直接在onLoad中添加事件监听器
+        window.addEventListener('resize', this.handleResize);
+    },
+    onUnload() {
+        console.log("页面 onUnload: 移除屏幕尺寸监听器");
+        window.removeEventListener('resize', this.handleResize);
+        if (resizeTimer) {
+            clearTimeout(resizeTimer);
+        }
+    },
+	methods: {
+        // 检查横竖屏状态
+        checkOrientation() {
+            const isLand = this.windowWidth > this.windowHeight;
+            if (this.isLandscape !== isLand) { // 只有在状态改变时才更新和打印
+                this.isLandscape = isLand;
+                console.log(`屏幕方向切换到: ${isLand ? "横屏模式" : "竖屏模式"}`);
+            }
+        },
+
+        // 处理尺寸变化
+        handleResize() {
+            console.log("窗口尺寸变化事件触发");
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const systemInfo = uni.getSystemInfoSync();
+                this.windowWidth = systemInfo.windowWidth;
+                this.windowHeight = systemInfo.windowHeight;
+                console.log(`新窗口尺寸: 宽度=${this.windowWidth}, 高度=${this.windowHeight}`);
+                this.checkOrientation();
+            }, 100); // 防抖延迟
+        },
+		// 新增：检测消息是否包含负面关键词
+		containsNegativeKeyword(msg) {
+			return negativeKeywords.some(word => msg.includes(word));
+		},
+		// 新增：检测AI回复中是否包含情绪扫描推荐关键词
+		containsAIRecommendedKeyword(response) {
+			const promptKeywords = ['情绪扫描', '情绪分析', '检测你的情绪', '心理检测', '情绪波动',
+				'情绪状态', '心情如何', '心理状况', '需要帮助', '看起来很', '建议你', '似乎你在',
+				'或许你需要', '我感受到你的', '看起来你可能在', '你的语气显示', '让我们一起'
+			];
+			const emotionWordsInAIResponse = ['伤心', '难过', '焦虑', '担忧', '生气', '愤怒', '恐惧',
+				'紧张', '压力', '困扰', '烦恼', '消极', '抑郁', '悲观'
+			];
+
+			let foundPromptKeyword = promptKeywords.some(keyword => response.includes(keyword));
+			let emotionWordCount = emotionWordsInAIResponse.filter(word => response.includes(word)).length;
+
+			return foundPromptKeyword || (emotionWordCount >= 2);
+		},
+
+		// 统一的情绪检测触发逻辑
+		runComprehensiveEmotionCheck() {
+			// 确保至少聊了3句（用户消息和AI回复总和）才开始检测
+			if (this.messageCount < 3) {
+				return;
+			}
+
+			// 检查冷却时间，避免频繁弹窗（5分钟 = 300000毫秒）
+			if (Date.now() - this.lastShowPromptTime < 300000) {
+				return;
+			}
+
+			let shouldTriggerModal = false;
+
+			// 遍历所有消息（用户和AI的），检测关键词
+			// 注意：这里可以根据需要优化，例如只检测最近N条消息
+			for (const message of this.messages) {
+				if (message.type === 'user') {
+					if (this.containsNegativeKeyword(message.content)) {
+						shouldTriggerModal = true;
+						break; // 发现关键词即可触发
+					}
+				} else if (message.type === 'ai') {
+					// 如果AI回复中包含情绪相关的关键词或AI推荐词
+					if (this.containsAIRecommendedKeyword(message.content)) {
+						shouldTriggerModal = true;
+						break; // 发现关键词即可触发
+					}
+				}
+			}
+
+			if (shouldTriggerModal && !this.showEmotionModal) {
+				setTimeout(() => {
+					this.showEmotionModal = true;
+					this.lastShowPromptTime = Date.now();
+				}, 1000); // 延迟1秒显示弹窗，更自然
+			}
+		},
+
+		// 处理消息发送
+		handleSend() {
+			if (!this.userInput.trim() || this.animating || this.loading) return
+
+			const userText = this.userInput.trim()
+			this.userInput = ''
+			this.animating = true
+			this.loading = true
+
+			// 添加用户消息
+			this.messages.push({
+				content: userText,
+				type: 'user',
+				id: Date.now()
+			})
+
+			// 消息发送后滚动到底部
+			this.$nextTick(() => {
+				this.scrollToBottom()
+
+				// 调用API获取回复
+				this.getAIResponse(userText)
+
+				// 增加消息计数
+				this.messageCount++
+
+				// 每次用户发送消息后，运行全面的情绪检测
+				this.runComprehensiveEmotionCheck()
+			})
+		},
+
+		// 调用API获取AI响应
+		getAIResponse(userText) {
+            console.log('getAIResponse: 开始调用LLM API');
+            console.log('发送给LLM的userText:', userText);
+            console.log('使用的sessionId:', this.sessionId);
+
+			// 显示加载指示器
+			uni.showLoading({
+				title: '分析中...',
+				mask: false
+			});
+
+			// 使用真实的LLM API
+			request.chatWithLLM({
+				message: userText,
+				sessionId: this.sessionId
+			})
+			.then(res => {
+                console.log('LLM API调用成功，收到完整响应:', res);
+				uni.hideLoading(); // 提前隐藏loading
+
+				const response = res.response_text;
+
+				if (response) {
+					this.messages.push({
+						content: response,
+						type: 'ai',
+						id: Date.now()
+					});
+					console.log('LLM响应内容:', response);
+					// AI回复后也进行全面的情绪检测
+					this.runComprehensiveEmotionCheck();
+				} else {
+					console.warn('LLM响应中未找到response_text或其为空:', res);
+					uni.showToast({ title: 'AI响应内容为空', icon: 'none', duration: 2000 });
+				}
+			})
+			.catch(err => {
+                console.error('LLM API调用失败，捕获到错误:', err);
+				uni.hideLoading(); // 提前隐藏loading
+				// 打印完整的错误对象，确保能看到所有细节
+				console.error('LLM请求失败的完整错误信息:', JSON.stringify(err, null, 2)); 
+				let errorMessage = 'AI服务暂时不可用';
+				if (err) {
+					if (err.message) {
+						errorMessage = err.message;
+					}
+					// 尝试从不同的错误结构中提取详细信息
+					if (err.detail) {
+						if (typeof err.detail === 'string') {
+							errorMessage += `: ${err.detail}`;
+						} else if (err.detail.errMsg) { // 针对uni.request的errMsg
+                            errorMessage += `: ${err.detail.errMsg}`;
+                        } else if (Array.isArray(err.detail) && err.detail.length > 0 && err.detail[0].msg) {
+							errorMessage += `: ${err.detail[0].msg}`;
+						}
+					}
+				}
+				uni.showToast({ title: errorMessage, icon: 'none', duration: 4000 });
+			})
+			.finally(() => {
+                console.log('LLM API调用结束，执行 finally 块');
+				this.$nextTick(() => {
+					this.scrollToBottom();
+					this.loading = false;
+					setTimeout(() => { this.animating = false; }, 300);
+				});
+			});
+		},
+
+		// 处理输入框点击
+		handleInputClick() {
+			// 简化的输入框点击处理，根据实际需要扩展
+		},
+
+		// 滚动到底部 - 使用scroll-view的滚动特性
+		scrollToBottom() {
+			setTimeout(() => {
+				const query = uni.createSelectorQuery().in(this)
+				query.selectAll('.chat-box view').boundingClientRect(data => {
+					if (data && data.length > 0) {
+						this.scrollTop = 10000
+					}
+				}).exec()
+			}, 100)
+		},
+
+		// 关闭情绪检测弹窗
+		closeEmotionModal() {
+			this.showEmotionModal = false
+		},
+
+		// 开始情绪检测
+		startEmotionDetection() {
+			this.closeEmotionModal()
+			uni.navigateTo({
+				url: '/pages/emotion-detect/emotion-detect'
+			})
+		},
+		onSettingTap() {
+			uni.showToast({ title: '设置功能开发中...', icon: 'none' });
+		}
+	}
+}
+</script>
+
+<style scoped>
+.container {
+  min-height: 100vh;
+  background-color: #050410;
+  background-image: linear-gradient(-45deg, #4f00bc, #7d1b7e, #0f0c29, #2a0845, #12c2e9);
+  background-size: 400% 400%;
+  animation: gradient-bg 12s ease infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32rpx 0 32rpx 0;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(79, 0, 188, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(18, 194, 233, 0.3) 0%, transparent 50%);
+  animation: pulse-bg 18s ease-in-out infinite alternate;
+  z-index: 0;
+  will-change: opacity, transform;
+}
+
+/* 粒子效果 */
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.particle {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.particle:nth-child(1) { width: 1.5rpx; height: 1.5rpx; top: 10%; left: 20%; animation: float 60s linear infinite; }
+.particle:nth-child(2) { width: 3rpx; height: 3rpx; top: 20%; left: 80%; animation: float 45s linear infinite; }
+.particle:nth-child(3) { width: 0.8rpx; height: 0.8rpx; top: 30%; left: 15%; animation: float 70s linear infinite; }
+.particle:nth-child(4) { width: 2.5rpx; height: 2.5rpx; top: 40%; left: 90%; animation: float 55s linear infinite; }
+.particle:nth-child(5) { width: 1.5rpx; height: 1.5rpx; top: 50%; left: 60%; animation: float 80s linear infinite; }
+.particle:nth-child(6) { width: 4rpx; height: 4rpx; top: 60%; left: 25%; animation: float 40s linear infinite; }
+.particle:nth-child(7) { width: 1.5rpx; height: 1.5rpx; top: 70%; left: 75%; animation: float 65s linear infinite; }
+.particle:nth-child(8) { width: 0.8rpx; height: 0.8rpx; top: 80%; left: 35%; animation: float 75s linear infinite; }
+.particle:nth-child(9) { width: 2.5rpx; height: 2.5rpx; top: 90%; left: 50%; animation: float 50s linear infinite; }
+.particle:nth-child(10) { width: 3rpx; height: 3rpx; top: 15%; left: 65%; animation: float 85s linear infinite; }
+.particle:nth-child(11) { width: 1.5rpx; height: 1.5rpx; top: 25%; left: 40%; animation: float 90s linear infinite; }
+.particle:nth-child(12) { width: 0.8rpx; height: 0.8rpx; top: 35%; left: 85%; animation: float 60s linear infinite; }
+.particle:nth-child(13) { width: 2.5rpx; height: 2.5rpx; top: 45%; left: 5%; animation: float 70s linear infinite; }
+.particle:nth-child(14) { width: 1.5rpx; height: 1.5rpx; top: 55%; left: 45%; animation: float 55s linear infinite; }
+.particle:nth-child(15) { width: 3rpx; height: 3rpx; top: 65%; left: 95%; animation: float 65s linear infinite; }
+.particle:nth-child(16) { width: 2.5rpx; height: 2.5rpx; top: 75%; left: 55%; animation: float 80s linear infinite; }
+.particle:nth-child(17) { width: 0.8rpx; height: 0.8rpx; top: 85%; left: 30%; animation: float 45s linear infinite; }
+.particle:nth-child(18) { width: 1.5rpx; height: 1.5rpx; top: 95%; left: 70%; animation: float 50s linear infinite; }
+.particle:nth-child(19) { width: 3rpx; height: 3rpx; top: 5%; left: 10%; animation: float 75s linear infinite; }
+.particle:nth-child(20) { width: 2.5rpx; height: 2.5rpx; top: 93%; left: 13%; animation: float 60s linear infinite; }
+
+@keyframes float {
+  0% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-200px) translateX(100px); }
+  100% { transform: translateY(-400px) translateX(0); opacity: 0; }
+}
+
+@keyframes gradient-bg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse-bg {
+  0% { opacity: 0.5; }
+  50% { opacity: 0.7; }
+  100% { opacity: 0.5; }
+}
+
+.top-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: 36rpx;
+  margin-bottom: 36rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.face-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.eye {
+  width: 80rpx;
+  height: 100rpx;
+  background: linear-gradient(135deg, #fff, #f0f0f0);
+  border-radius: 50% / 100%;
+  box-shadow: 0 0 12rpx rgba(255, 255, 255, 0.7);
+  animation: eye-blink 6s infinite ease-in-out;
+  margin: 0 30rpx;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes eye-blink {
+  0%, 20%, 40%, 60%, 80%, 100% { transform: scaleY(1); }
+  25%, 55%, 85% { transform: scaleY(0.1); }
+}
+
+.chat-card {
+  width: 96vw;
+  max-width: 750rpx;
+  min-height: 500rpx;
+  background: rgba(255,255,255,0.10);
+  border-radius: 32rpx;
+  box-shadow: 0 6rpx 32rpx 0 rgba(80,60,180,0.10);
+  padding: 20rpx 16rpx 20rpx 16rpx;
+  margin: 0 auto 20rpx auto;
+  backdrop-filter: blur(8rpx);
+  border: 1.5rpx solid rgba(255,255,255,0.13);
+  z-index: 1;
+}
+
+.chat-box {
+  flex: 1;
+  width: 100%; /* 占满整个容器宽度 */
+  margin: 0; /* 移除边距，贴边显示 */
+  padding: 24rpx; /* 增加内边距 */
+  background-color: rgba(255, 255, 255, 0.1); /* 添加背景 */
+  border-radius: 24rpx; /* 圆角 */
+  box-shadow: 0 5rpx 15rpx rgba(0, 0, 0, 0.2); /* 阴影 */
+  box-sizing: border-box;
+  overflow-y: auto;
+  min-height: 400rpx; /* 设置最小高度 */
+}
+
+.ai-message,
+.user-message {
+  max-width: 75%; /* 增加最大宽度 */
+  margin-bottom: 16rpx; /* 增加底部边距 */
+  padding: 18rpx 24rpx; /* 增加内边距 */
+  border-radius: 24rpx; /* 增加圆角 */
+  position: relative;
+  animation: message-in 0.3s ease-out forwards;
+  word-wrap: break-word;
+  display: block;
+}
+
+.chat-message {
+  font-size: 24rpx;
+  line-height: 1.4;
+}
+
+.ai-message {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  align-self: flex-start;
+  margin-right: auto;
+  border-bottom-left-radius: 6rpx; /* 进一步缩小圆角 */
+}
+
+.user-message {
+  background-color: #6847c2;
+  color: #ffffff;
+  align-self: flex-end;
+  margin-left: auto;
+  border-bottom-right-radius: 6rpx; /* 进一步缩小圆角 */
+}
+
+/* 加载消息动画 */
+.loading-message {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  align-self: flex-start;
+  margin-right: auto;
+  border-bottom-left-radius: 6rpx; /* 进一步缩小圆角 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60rpx; /* 进一步缩小最小高度 */
+}
+
+.loading-dots {
+  display: flex;
+}
+
+.dot {
+  width: 12rpx; /* 进一步缩小点 */
+  height: 12rpx; /* 进一步缩小点 */
+  background-color: #fff;
+  border-radius: 50%;
+  margin: 0 2rpx; /* 进一步缩小间距 */
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(10rpx); } /* 进一步缩小位移 */
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.input-card {
+  width: 96vw;
+  max-width: 750rpx;
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.10);
+  border-radius: 32rpx;
+  box-shadow: 0 6rpx 32rpx 0 rgba(80,60,180,0.10);
+  padding: 20rpx 16rpx 20rpx 16rpx;
+  margin: 0 auto 20rpx auto;
+  backdrop-filter: blur(8rpx);
+  border: 1.5rpx solid rgba(255,255,255,0.13);
+  z-index: 2;
+}
+.input-inner {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  background: rgba(255,255,255,0.13);
+  border-radius: 24rpx;
+  padding: 0 18rpx 0 24rpx;
+  box-sizing: border-box;
+}
+.chat-input {
+  flex: 1;
+  font-size: 32rpx;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  padding: 32rpx 0; /* 进一步增加上下内边距 */
+  min-height: 72rpx; /* 相应增加最小高度 */
+  margin-right: 16rpx;
+  display: block;
+}
+.send-button {
+  margin-left: 0;
+  padding: 0 40rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(90deg, #7d1b7e 0%, #4f00bc 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 30rpx;
+  box-shadow: 0 4rpx 16rpx #4f00bc55;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.send-button.disabled {
+  opacity: 0.5;
+  background: #b0b0c0;
+  box-shadow: none;
+}
+
+.send-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 8rpx #4f00bc33;
+}
+
+.send-button:hover {
+  box-shadow: 0 6rpx 20rpx #4f00bc66;
+}
+
+.privacy-footer-card {
+  width: 96vw;
+  max-width: 750rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18rpx 24rpx;
+  margin: 0 auto 0 auto;
+  background: rgba(255,255,255,0.10);
+  border-radius: 32rpx;
+  box-shadow: 0 6rpx 32rpx 0 rgba(80,60,180,0.10);
+  border: 1.5rpx solid rgba(255,255,255,0.13);
+  z-index: 2;
+  position: relative;
+}
+
+.fab-setting {
+  position: fixed;
+  right: 38rpx;
+  bottom: 54rpx;
+  width: 88rpx;
+  height: 88rpx;
+  background: linear-gradient(135deg, #4f00bc 0%, #12c2e9 100%);
+  border-radius: 50%;
+  box-shadow: 0 4rpx 16rpx #4f00bc55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.fab-setting:active {
+  box-shadow: 0 2rpx 6rpx #4f00bc33;
+}
+.fab-icon {
+  font-size: 44rpx;
+  color: #fff;
+}
+
+/* 情绪检测推荐弹窗样式 */
+.emotion-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.emotion-modal-content {
+  background: linear-gradient(135deg, #4f00bc, #7d1b7e);
+  border-radius: 20rpx; /* 进一步缩小圆角 */
+  padding: 25rpx; /* 进一步缩小内边距 */
+  width: 90%; /* 进一步调整宽度 */
+  max-width: 450rpx; /* 进一步缩小最大宽度 */
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.3); /* 进一步缩小阴影 */
+  text-align: center;
+  position: relative;
+  animation: modal-fade-in 0.3s ease-out;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; transform: translateY(-30rpx) scale(0.98); } /* 进一步缩小位移和缩放 */
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-close {
+  position: absolute;
+  top: 10rpx; /* 进一步缩小位置 */
+  right: 20rpx; /* 进一步缩小位置 */
+  font-size: 32rpx; /* 进一步缩小字体 */
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.modal-header {
+  margin-bottom: 20rpx; /* 进一步缩小底部边距 */
+}
+
+.modal-title {
+  font-size: 36rpx; /* 进一步缩小字体 */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.modal-body {
+  margin-bottom: 25rpx; /* 进一步缩小底部边距 */
+}
+
+.modal-text {
+  font-size: 26rpx; /* 进一步缩小字体 */
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.3; /* 调整行高 */
+  margin-bottom: 6rpx; /* 进一步缩小底部边距 */
+  display: block;
+}
+
+.modal-description {
+  font-size: 24rpx; /* 进一步缩小字体 */
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 10rpx; /* 进一步缩小顶部边距 */
+}
+
+.modal-icon {
+  width: 80rpx; /* 进一步缩小图标 */
+  height: 80rpx; /* 进一步缩小图标 */
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 25rpx auto; /* 进一步缩小边距 */
+  position: relative;
+}
+
+.modal-icon .pulse-circle {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  animation: modal-pulse 1.5s infinite;
+}
+
+@keyframes modal-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.2); opacity: 0; } /* 进一步缩小缩放 */
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 25rpx; /* 进一步缩小顶部边距 */
+}
+
+.modal-button {
+  padding: 12rpx 25rpx; /* 进一步缩小内边距 */
+  border-radius: 20rpx; /* 进一步缩小圆角 */
+  font-size: 26rpx; /* 进一步缩小字体 */
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.modal-button:active {
+  transform: scale(0.95);
+}
+
+.modal-button.cancel {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.modal-button.primary {
+  background-color: #fff;
+  color: #6847c2;
+}
+
+/* 样式部分 */
+.welcome-header {
+  width: 96vw;
+  max-width: 750rpx;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0;
+  margin-bottom: 32rpx;
+  z-index: 2;
+}
+.welcome-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(255,255,255,0.15);
+  border-radius: 28rpx;
+  box-shadow: 0 6rpx 20rpx 0 rgba(80,60,180,0.15);
+  padding: 20rpx 24rpx;
+  width: 100%;
+  backdrop-filter: blur(10rpx);
+  border: 1.5rpx solid rgba(255,255,255,0.2);
+}
+.welcome-icon {
+  font-size: 44rpx;
+  margin-right: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.welcome-texts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.welcome-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 8rpx;
+}
+.welcome-tip {
+  font-size: 22rpx;
+  color: #b0b0c0;
+  font-style: normal;
+  letter-spacing: 1rpx;
+}
+
+.privacy-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+  color: #ffd700;
+}
+
+.privacy-text {
+  font-size: 24rpx;
+  color: #F8D46D; /* 调整为更偏黄的颜色 */
+  line-height: 1.4;
+}
+</style>

@@ -1,0 +1,17 @@
+{
+  "name": "aiemodetect",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev:h5": "vite",
+    "dev:mp-weixin": "npx uni --mode mp-weixin"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@dcloudio/uni-app": "^3.0.0-4000",
+    "@dcloudio/uni-mp-weixin": "^3.0.0-4000"
+  }
+}

@@ -1,0 +1,285 @@
+import { ref, computed, onMounted } from 'vue';
+
+
+const __sfc__ = defineComponent({
+  __name: 'questionnaire',
+  setup(__props): any | null {
+const __ins = getCurrentInstance()!;
+const _ctx = __ins.proxy as InstanceType<typeof __sfc__>;
+const _cache = __ins.renderCache;
+
+const scaleTitle = ref('');
+const scaleType = ref('');
+const currentQuestionIndex = ref(0);
+const userAnswers = ref({}); // { questionId: score }
+
+const dass21Questions = [
+  { id: 1, text: '我感觉很难让自己安静下来' },
+  { id: 2, text: '我感到口干' },
+  { id: 3, text: '我好像不能再有任何愉快、舒畅的感觉' },
+  { id: 4, text: '我感到呼吸困难(例如不是做运动时也感到气促或透不过气来)' },
+  { id: 5, text: '我感到很难自动去开始工作' },
+  { id: 6, text: '我对事情往往作出过敏反应' },
+  { id: 7, text: '我感到颤抖(例如手震)' },
+  { id: 8, text: '我觉得自己消耗很多精神' },
+  { id: 9, text: '我忧虑一些自己恐慌或出丑的场合' },
+  { id: 10, text: '我觉得自己对将来没有甚么可盼望' },
+  { id: 11, text: '我感到忐忑不安' },
+  { id: 12, text: '我感到很难放松自己' },
+  { id: 13, text: '我感到忧 沮丧' },
+  { id: 14, text: '我无法容忍任何阻碍我继续作的事情' },
+  { id: 15, text: '我感到快要恐慌了' },
+  { id: 16, text: '我对任何事也不能热衷' },
+  { id: 17, text: '我觉得自己不怎么配做人' },
+  { id: 18, text: '我发觉自己很容易被触怒' },
+  { id: 19, text: '我察觉自己没有明显的体力劳动时，也感到心律不正常' },
+  { id: 20, text: '我无缘无故地感到害怕' },
+  { id: 21, text: '我感到生命毫无意义' }
+];
+
+const phq9Questions = [
+  { id: 1, text: '做事情几乎没有兴趣或乐趣' },
+  { id: 2, text: '感到情绪低落，沮丧或绝望' },
+  { id: 3, text: '难以入睡或保持睡眠，或睡得太多' },
+  { id: 4, text: '感到疲倦或没有精力' },
+  { id: 5, text: '食欲不振或暴饮暴食' },
+  { id: 6, text: '对自己感到不好，或觉得自己是个失败者，或让自己或家人失望' },
+  { id: 7, text: '难以集中注意力，例如阅读报纸或看电视' },
+  { id: 8, text: '行动或说话缓慢，以至于其他人可能注意到，或者相反—坐立不安或烦躁不安，比平时动得更多' },
+  { id: 9, text: '觉得自己死了会更好，或想伤害自己的念头' }
+];
+
+const dass21Options = [
+  { value: 0, text: '不适用' },
+  { value: 1, text: '很适用，或经常适用' },
+  { value: 2, text: '非常适用' },
+  { value: 3, text: '最适用' }
+];
+
+const phq9Options = [
+  { value: 0, text: '完全没有' },
+  { value: 1, text: '几天' },
+  { value: 2, text: '一半以上日子' },
+  { value: 3, text: '几乎每天' }
+];
+
+const currentQuestions = computed(() => {
+  if (scaleType.value === 'DASS21') {
+    return dass21Questions;
+  } else if (scaleType.value === 'PHQ9') {
+    return phq9Questions;
+  }
+  return [];
+});
+
+const currentOptions = computed(() => {
+  if (scaleType.value === 'DASS21') {
+    return dass21Options;
+  } else if (scaleType.value === 'PHQ9') {
+    return phq9Options;
+  }
+  return [];
+});
+
+const currentQuestion = computed(() => {
+  return currentQuestions.value[currentQuestionIndex.value];
+});
+
+onLoad((options) => {
+  if (options.scaleType) {
+    scaleType.value = options.scaleType;
+    if (scaleType.value === 'DASS21') {
+      scaleTitle.value = '抑郁-焦虑-压力量表 (DASS-21)';
+    } else if (scaleType.value === 'PHQ9') {
+      scaleTitle.value = '抑郁症状评估量表 (PHQ-9)';
+    }
+    // 尝试从本地加载进度
+    loadProgress();
+  } else {
+    uni.showToast({ title: '量表类型未指定', icon: 'error' });
+  }
+});
+
+function selectAnswer(questionId, score) {
+  userAnswers.value[questionId] = score;
+  saveProgress(); // 每次选择答案后保存进度
+}
+
+function nextQuestion() {
+  if (userAnswers.value[currentQuestion.value.id] === undefined) {
+    uni.showToast({ title: '请选择一个答案', icon: 'none' });
+    return;
+  }
+  if (currentQuestionIndex.value < currentQuestions.value.length - 1) {
+    currentQuestionIndex.value++;
+    saveProgress();
+  } else {
+    submitScale();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestionIndex.value > 0) {
+    currentQuestionIndex.value--;
+    saveProgress();
+  }
+}
+
+async function submitScale() {
+  if (userAnswers.value[currentQuestion.value.id] === undefined) {
+    uni.showToast({ title: '请选择一个答案', icon: 'none' });
+    return;
+  }
+
+  const allAnswered = currentQuestions.value.every(q => userAnswers.value[q.id] !== undefined);
+  if (!allAnswered) {
+    uni.showToast({
+      title: '请回答所有题目',
+      icon: 'none',
+      duration: 2000
+    });
+    return;
+  }
+
+  const results = {
+    scaleType: scaleType.value,
+    timestamp: Date.now(),
+    answers: userAnswers.value,
+    totalScore: Object.values(userAnswers.value).reduce((sum, score) => sum + score, 0)
+  };
+
+  try {
+    await uni.setStorage({
+      key: `scaleResult_${results.scaleType}_${results.timestamp}`,
+      data: JSON.stringify(results)
+    });
+    console.log('量表结果已存储:', results);
+
+    uni.showToast({
+      title: '测评完成，结果已保存',
+      icon: 'success',
+      duration: 2000
+    });
+
+    // 清除本次量表的进度数据
+    uni.removeStorage({ key: `scaleProgress_${scaleType.value}` });
+
+    // 跳转到结果页面，并传递结果数据
+    uni.navigateTo({
+      url: `/pages/emotion-result/emotion-result?scaleType=${results.scaleType}&timestamp=${results.timestamp}`,
+      success: function(res) {
+        // 通过eventChannel向下一个页面发送数据
+        res.eventChannel.emit('acceptResultDataFromOpenerPage', { data: results });
+      }
+    });
+
+  } catch (error) {
+    console.error('量表结果保存或跳转失败:', error);
+    uni.showToast({
+      title: '结果处理失败',
+      icon: 'error',
+      duration: 2000
+    });
+  }
+}
+
+async function saveProgress() {
+  const progressKey = `scaleProgress_${scaleType.value}`;
+  const progressData = {
+    questionIndex: currentQuestionIndex.value,
+    answers: userAnswers.value
+  };
+  try {
+    await uni.setStorage({
+      key: progressKey,
+      data: JSON.stringify(progressData)
+    });
+    console.log('进度已保存:', progressData);
+  } catch (error) {
+    console.error('进度保存失败:', error);
+  }
+}
+
+async function loadProgress() {
+  const progressKey = `scaleProgress_${scaleType.value}`;
+  try {
+    const res = await uni.getStorage({
+      key: progressKey
+    });
+    if (res.data) {
+      const progressData = JSON.parse(res.data);
+      currentQuestionIndex.value = progressData.questionIndex;
+      userAnswers.value = progressData.answers;
+      uni.showToast({ title: '已加载上次进度', icon: 'none' });
+    }
+  } catch (error) {
+    console.warn('无上次进度或加载失败:', error);
+  }
+}
+
+async function exitAndSaveProgress() {
+  await saveProgress();
+  uni.showToast({
+    title: '进度已保存，返回列表',
+    icon: 'none',
+    duration: 1500
+  });
+  uni.navigateBack();
+}
+
+return (): any | null => {
+
+  return createElementVNode("view", utsMapOf({ class: "container" }), [
+    createElementVNode("view", utsMapOf({ class: "header" }), [
+      createElementVNode("text", utsMapOf({ class: "title" }), toDisplayString(scaleTitle.value), 1 /* TEXT */),
+      createElementVNode("text", utsMapOf({ class: "question-count" }), toDisplayString(currentQuestionIndex.value + 1) + " / " + toDisplayString(currentQuestions.value.length), 1 /* TEXT */)
+    ]),
+    isTrue(currentQuestion.value)
+      ? createElementVNode("view", utsMapOf({
+          key: 0,
+          class: "questionnaire-card animate-fade-in"
+        }), [
+          createElementVNode("view", utsMapOf({ class: "question-text" }), [
+            createElementVNode("text", null, toDisplayString(currentQuestion.value.id) + ". " + toDisplayString(currentQuestion.value.text), 1 /* TEXT */)
+          ]),
+          createElementVNode("view", utsMapOf({ class: "options-list" }), [
+            createElementVNode(Fragment, null, RenderHelpers.renderList(currentOptions.value, (option, index, __index, _cached): any => {
+              return createElementVNode("view", utsMapOf({
+                key: option.value,
+                class: normalizeClass(['option-item', utsMapOf({ 'selected': userAnswers.value[currentQuestion.value.id] === option.value })]),
+                onClick: () => {selectAnswer(currentQuestion.value.id, option.value)}
+              }), [
+                createElementVNode("text", utsMapOf({ class: "option-label" }), toDisplayString(option.value) + " =", 1 /* TEXT */),
+                createElementVNode("text", utsMapOf({ class: "option-text" }), toDisplayString(option.text), 1 /* TEXT */)
+              ], 10 /* CLASS, PROPS */, ["onClick"])
+            }), 128 /* KEYED_FRAGMENT */)
+          ]),
+          createElementVNode("view", utsMapOf({ class: "navigation-buttons" }), [
+            createElementVNode("button", utsMapOf({
+              class: "nav-button prev-button animate-bounce-in",
+              disabled: currentQuestionIndex.value === 0,
+              onClick: prevQuestion
+            }), "上一题", 8 /* PROPS */, ["disabled"]),
+            createElementVNode("button", utsMapOf({
+              class: "nav-button next-button animate-bounce-in",
+              onClick: nextQuestion
+            }), toDisplayString(currentQuestionIndex.value === currentQuestions.value.length - 1 ? '提交' : '下一题'), 1 /* TEXT */)
+          ]),
+          createElementVNode("button", utsMapOf({
+            class: "exit-button animate-fade-in",
+            onClick: exitAndSaveProgress
+          }), "退出并保存进度")
+        ])
+      : createElementVNode("view", utsMapOf({
+          key: 1,
+          class: "loading-placeholder"
+        }), [
+          createElementVNode("text", utsMapOf({ class: "loading-text" }), "加载中...")
+        ])
+  ])
+}
+}
+
+})
+export default __sfc__
+const GenPagesQuestionnaireQuestionnaireStyles = [utsMapOf([["container", padStyleMapOf(utsMapOf([["backgroundColor", "#050410"], ["backgroundSize", "4px 4px,\n    400% 400%"], ["animation", "gradient-bg 8s ease infinite"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["paddingTop", "40rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "30rpx"], ["boxSizing", "border-box"], ["position", "relative"], ["overflow", "hidden"], ["content::before", "''"], ["position::before", "absolute"], ["top::before", 0], ["left::before", 0], ["right::before", 0], ["bottom::before", 0], ["animation::before", "pulse-bg 15s ease-in-out infinite alternate"], ["zIndex::before", 0]]))], ["header", padStyleMapOf(utsMapOf([["width", "100%"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"], ["marginBottom", "40rpx"], ["display", "flex"], ["flexDirection", "column"], ["justifyContent", "center"], ["alignItems", "center"], ["position", "relative"], ["zIndex", 1]]))], ["title", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "38rpx"], ["textAlign", "center"], ["textShadow", "0 2rpx 4rpx rgba(0, 0, 0, 0.3)"], ["marginBottom", "10rpx"]]))], ["question-count", padStyleMapOf(utsMapOf([["color", "#cccccc"], ["fontSize", "28rpx"], ["textAlign", "center"]]))], ["questionnaire-card", padStyleMapOf(utsMapOf([["width", "92%"], ["maxWidth", "650rpx"], ["backgroundImage", "linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98))"], ["backgroundColor", "rgba(0,0,0,0)"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["boxShadow", "0 10rpx 30rpx rgba(0, 0, 0, 0.4)"], ["marginTop", "20rpx"], ["position", "relative"], ["zIndex", 1], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["textAlign", "center"]]))], ["question-text", padStyleMapOf(utsMapOf([["fontSize", "36rpx"], ["fontWeight", "bold"], ["color", "#333333"], ["marginBottom", "40rpx"], ["lineHeight", 1.5]]))], ["options-list", padStyleMapOf(utsMapOf([["width", "100%"], ["display", "flex"], ["flexDirection", "column"], ["gap", "25rpx"], ["marginBottom", "40rpx"]]))], ["option-item", utsMapOf([["", utsMapOf([["backgroundColor", "#f0f0f0"], ["borderTopLeftRadius", "18rpx"], ["borderTopRightRadius", "18rpx"], ["borderBottomRightRadius", "18rpx"], ["borderBottomLeftRadius", "18rpx"], ["paddingTop", "25rpx"], ["paddingRight", "35rpx"], ["paddingBottom", "25rpx"], ["paddingLeft", "35rpx"], ["cursor", "pointer"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["borderTopWidth", "2rpx"], ["borderRightWidth", "2rpx"], ["borderBottomWidth", "2rpx"], ["borderLeftWidth", "2rpx"], ["borderTopStyle", "solid"], ["borderRightStyle", "solid"], ["borderBottomStyle", "solid"], ["borderLeftStyle", "solid"], ["borderTopColor", "#eeeeee"], ["borderRightColor", "#eeeeee"], ["borderBottomColor", "#eeeeee"], ["borderLeftColor", "#eeeeee"], ["display", "flex"], ["alignItems", "center"], ["textAlign", "left"], ["transform:active", "scale(0.98)"], ["boxShadow:active", "0 2rpx 8rpx rgba(0, 0, 0, 0.2)"]])], [".selected", utsMapOf([["backgroundColor", "#6b5b95"], ["color", "#FFFFFF"], ["borderTopColor", "#6b5b95"], ["borderRightColor", "#6b5b95"], ["borderBottomColor", "#6b5b95"], ["borderLeftColor", "#6b5b95"], ["boxShadow", "0 4rpx 15rpx rgba(107, 91, 149, 0.5)"]])]])], ["option-label", utsMapOf([[".option-item.selected ", utsMapOf([["color", "#FFFFFF"]])], ["", utsMapOf([["fontSize", "30rpx"], ["fontWeight", "bold"], ["color", "#555555"], ["marginRight", "15rpx"], ["minWidth", "50rpx"], ["textAlign", "right"]])]])], ["option-text", utsMapOf([[".option-item.selected ", utsMapOf([["color", "#FFFFFF"]])], ["", utsMapOf([["fontSize", "30rpx"], ["color", "#333333"], ["flex", 1]])]])], ["navigation-buttons", padStyleMapOf(utsMapOf([["width", "100%"], ["display", "flex"], ["justifyContent", "space-around"], ["gap", "30rpx"], ["marginBottom", "30rpx"]]))], ["nav-button", padStyleMapOf(utsMapOf([["flex", 1], ["backgroundColor", "#4f00bc"], ["color", "#FFFFFF"], ["paddingTop", "20rpx"], ["paddingRight", 0], ["paddingBottom", "20rpx"], ["paddingLeft", 0], ["borderTopLeftRadius", "15rpx"], ["borderTopRightRadius", "15rpx"], ["borderBottomRightRadius", "15rpx"], ["borderBottomLeftRadius", "15rpx"], ["fontSize", "32rpx"], ["fontWeight", "bold"], ["boxShadow", "0 5rpx 15rpx rgba(0, 0, 0, 0.3)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["borderTopWidth", "medium"], ["borderRightWidth", "medium"], ["borderBottomWidth", "medium"], ["borderLeftWidth", "medium"], ["borderTopStyle", "none"], ["borderRightStyle", "none"], ["borderBottomStyle", "none"], ["borderLeftStyle", "none"], ["borderTopColor", "#000000"], ["borderRightColor", "#000000"], ["borderBottomColor", "#000000"], ["borderLeftColor", "#000000"], ["outline", "none"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 2rpx 8rpx rgba(0, 0, 0, 0.4)"], ["opacity:active", 0.8], ["backgroundColor:disabled", "#cccccc"], ["color:disabled", "#666666"], ["cursor:disabled", "not-allowed"], ["boxShadow:disabled", "none"], ["transform:disabled", "scale(1)"]]))], ["exit-button", padStyleMapOf(utsMapOf([["backgroundColor", "#888888"], ["color", "#FFFFFF"], ["paddingTop", "15rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "15rpx"], ["paddingLeft", "30rpx"], ["borderTopLeftRadius", "15rpx"], ["borderTopRightRadius", "15rpx"], ["borderBottomRightRadius", "15rpx"], ["borderBottomLeftRadius", "15rpx"], ["fontSize", "28rpx"], ["boxShadow", "0 4rpx 10rpx rgba(0, 0, 0, 0.2)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["borderTopWidth", "medium"], ["borderRightWidth", "medium"], ["borderBottomWidth", "medium"], ["borderLeftWidth", "medium"], ["borderTopStyle", "none"], ["borderRightStyle", "none"], ["borderBottomStyle", "none"], ["borderLeftStyle", "none"], ["borderTopColor", "#000000"], ["borderRightColor", "#000000"], ["borderBottomColor", "#000000"], ["borderLeftColor", "#000000"], ["outline", "none"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 2rpx 5rpx rgba(0, 0, 0, 0.3)"], ["opacity:active", 0.8]]))], ["animate-fade-in", padStyleMapOf(utsMapOf([["animation", "fade-in 0.6s ease-out forwards"]]))], ["animate-bounce-in", padStyleMapOf(utsMapOf([["animation", "bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards"]]))], ["loading-placeholder", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "32rpx"], ["marginTop", "100rpx"]]))], ["@FONT-FACE", utsMapOf([["0", utsMapOf([])], ["1", utsMapOf([])], ["2", utsMapOf([])], ["3", utsMapOf([])]])], ["@TRANSITION", utsMapOf([["option-item", utsMapOf([["duration", "0.3s"], ["timingFunction", "ease"]])], ["nav-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "ease"]])], ["exit-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "ease"]])]])]])]

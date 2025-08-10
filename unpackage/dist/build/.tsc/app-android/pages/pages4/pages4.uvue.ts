@@ -1,0 +1,112 @@
+const __sfc__ = defineComponent({
+  __name: 'pages4',
+  setup(__props): any | null {
+const __ins = getCurrentInstance()!;
+const _ctx = __ins.proxy as InstanceType<typeof __sfc__>;
+const _cache = __ins.renderCache;
+
+	function handleMenuItem(name) {
+		uni.showToast({
+			title: '点击了' + name,
+			icon: 'none'
+		});
+	}
+
+return (): any | null => {
+
+  return createElementVNode("view", utsMapOf({ class: "container" }), [
+    createElementVNode("view", utsMapOf({ class: "particles" }), [
+      createElementVNode(Fragment, null, RenderHelpers.renderList(20, (i, __key, __index, _cached): any => {
+        return createElementVNode("view", utsMapOf({
+          class: "particle",
+          key: i,
+          style: normalizeStyle(utsMapOf({
+				left: Math.random() * 100 + '%',
+				top: Math.random() * 100 + '%',
+				opacity: (Math.random() * 0.5 + 0.3),
+				width: (Math.random() * 3 + 1) + 'rpx',
+				height: (Math.random() * 3 + 1) + 'rpx',
+				boxShadow: '0 0 ' + (Math.random() * 10 + 5) + 'rpx rgba(255, 255, 255, 0.8)',
+				animationDelay: (Math.random() * 15) + 's',
+				animationDuration: (Math.random() * 30 + 15) + 's'
+			}))
+        }), null, 4 /* STYLE */)
+      }), 64 /* STABLE_FRAGMENT */)
+    ]),
+    createElementVNode("view", utsMapOf({ class: "user-profile animate-slide-down" }), [
+      createElementVNode("image", utsMapOf({
+        src: "/static/avatar.png",
+        class: "user-avatar"
+      })),
+      createElementVNode("text", utsMapOf({ class: "user-name" }), "用户名"),
+      createElementVNode("text", utsMapOf({ class: "user-id" }), "ID: 12345678")
+    ]),
+    createElementVNode("view", utsMapOf({ class: "menu-list" }), [
+      createElementVNode("view", utsMapOf({
+        class: "menu-item animate-fade-slide",
+        style: normalizeStyle(utsMapOf({"--i":"0"})),
+        onClick: () => {handleMenuItem('历史记录')}
+      }), [
+        createElementVNode("image", utsMapOf({
+          src: "/static/record.png",
+          class: "menu-icon"
+        })),
+        createElementVNode("text", utsMapOf({ class: "menu-text" }), "历史记录"),
+        createElementVNode("text", utsMapOf({ class: "menu-arrow" }), ">")
+      ], 12 /* STYLE, PROPS */, ["onClick"]),
+      createElementVNode("view", utsMapOf({
+        class: "menu-item animate-fade-slide",
+        style: normalizeStyle(utsMapOf({"--i":"1"})),
+        onClick: () => {handleMenuItem('情绪分析报告')}
+      }), [
+        createElementVNode("image", utsMapOf({
+          src: "/static/analysis.png",
+          class: "menu-icon"
+        })),
+        createElementVNode("text", utsMapOf({ class: "menu-text" }), "情绪分析报告"),
+        createElementVNode("text", utsMapOf({ class: "menu-arrow" }), ">")
+      ], 12 /* STYLE, PROPS */, ["onClick"]),
+      createElementVNode("view", utsMapOf({
+        class: "menu-item animate-fade-slide",
+        style: normalizeStyle(utsMapOf({"--i":"2"})),
+        onClick: () => {handleMenuItem('设置')}
+      }), [
+        createElementVNode("image", utsMapOf({
+          src: "/static/setting.png",
+          class: "menu-icon"
+        })),
+        createElementVNode("text", utsMapOf({ class: "menu-text" }), "设置"),
+        createElementVNode("text", utsMapOf({ class: "menu-arrow" }), ">")
+      ], 12 /* STYLE, PROPS */, ["onClick"]),
+      createElementVNode("view", utsMapOf({
+        class: "menu-item animate-fade-slide",
+        style: normalizeStyle(utsMapOf({"--i":"3"})),
+        onClick: () => {handleMenuItem('帮助与反馈')}
+      }), [
+        createElementVNode("image", utsMapOf({
+          src: "/static/help.png",
+          class: "menu-icon"
+        })),
+        createElementVNode("text", utsMapOf({ class: "menu-text" }), "帮助与反馈"),
+        createElementVNode("text", utsMapOf({ class: "menu-arrow" }), ">")
+      ], 12 /* STYLE, PROPS */, ["onClick"]),
+      createElementVNode("view", utsMapOf({
+        class: "menu-item animate-fade-slide",
+        style: normalizeStyle(utsMapOf({"--i":"4"})),
+        onClick: () => {handleMenuItem('关于我们')}
+      }), [
+        createElementVNode("image", utsMapOf({
+          src: "/static/about.png",
+          class: "menu-icon"
+        })),
+        createElementVNode("text", utsMapOf({ class: "menu-text" }), "关于我们"),
+        createElementVNode("text", utsMapOf({ class: "menu-arrow" }), ">")
+      ], 12 /* STYLE, PROPS */, ["onClick"])
+    ])
+  ])
+}
+}
+
+})
+export default __sfc__
+const GenPagesPages4Pages4Styles = [utsMapOf([["container", padStyleMapOf(utsMapOf([["backgroundColor", "#03020d"], ["backgroundSize", "4px 4px,\n\t\t\t400% 400%"], ["animation", "gradient-bg 15s ease infinite"], ["position", "relative"], ["overflow", "hidden"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["paddingTop", "40rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "30rpx"], ["boxSizing", "border-box"], ["content::before", "''"], ["position::before", "absolute"], ["top::before", 0], ["left::before", 0], ["right::before", 0], ["bottom::before", 0], ["animation::before", "pulse-bg 15s ease-in-out infinite alternate"], ["zIndex::before", 0], ["content::after", "''"], ["position::after", "absolute"], ["top::after", 0], ["left::after", 0], ["width::after", "100%"], ["height::after", "100%"], ["backgroundSize::after", "30px 30px"], ["pointerEvents::after", "none"], ["opacity::after", 0.4], ["zIndex::after", 1]]))], ["particles", padStyleMapOf(utsMapOf([["position", "absolute"], ["top", 0], ["left", 0], ["width", "100%"], ["height", "100%"], ["overflow", "hidden"], ["zIndex", 2]]))], ["particle", padStyleMapOf(utsMapOf([["position", "absolute"], ["width", "4rpx"], ["height", "4rpx"], ["backgroundColor", "rgba(255,255,255,0.8)"], ["animation", "float-particle 15s linear infinite"], ["boxShadow", "0 0 5rpx rgba(255, 255, 255, 0.8)"]]))], ["user-profile", padStyleMapOf(utsMapOf([["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["marginBottom", "60rpx"], ["position", "relative"], ["zIndex", 3], ["marginTop", "50rpx"], ["width", "100%"]]))], ["user-avatar", padStyleMapOf(utsMapOf([["width", "150rpx"], ["height", "150rpx"], ["borderTopLeftRadius", "75rpx"], ["borderTopRightRadius", "75rpx"], ["borderBottomRightRadius", "75rpx"], ["borderBottomLeftRadius", "75rpx"], ["marginBottom", "20rpx"], ["borderTopWidth", "4rpx"], ["borderRightWidth", "4rpx"], ["borderBottomWidth", "4rpx"], ["borderLeftWidth", "4rpx"], ["borderTopStyle", "solid"], ["borderRightStyle", "solid"], ["borderBottomStyle", "solid"], ["borderLeftStyle", "solid"], ["borderTopColor", "#FFFFFF"], ["borderRightColor", "#FFFFFF"], ["borderBottomColor", "#FFFFFF"], ["borderLeftColor", "#FFFFFF"], ["boxShadow", "0 4rpx 15rpx rgba(0, 0, 0, 0.3)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["transform:active", "scale(0.97)"]]))], ["user-name", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "32rpx"], ["marginBottom", "10rpx"], ["textShadow", "0 2rpx 4rpx rgba(0, 0, 0, 0.3)"]]))], ["user-id", padStyleMapOf(utsMapOf([["color", "rgba(255,255,255,0.7)"], ["fontSize", "24rpx"]]))], ["menu-list", padStyleMapOf(utsMapOf([["width", "92%"], ["display", "flex"], ["flexDirection", "column"], ["gap", "15rpx"], ["position", "relative"], ["zIndex", 3], ["maxWidth", "650rpx"], ["marginTop", 0], ["marginRight", "auto"], ["marginBottom", 0], ["marginLeft", "auto"]]))], ["menu-item", padStyleMapOf(utsMapOf([["display", "flex"], ["alignItems", "center"], ["backgroundImage", "none"], ["backgroundColor", "rgba(255,255,255,0.9)"], ["borderTopLeftRadius", "15rpx"], ["borderTopRightRadius", "15rpx"], ["borderBottomRightRadius", "15rpx"], ["borderBottomLeftRadius", "15rpx"], ["paddingTop", "25rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "25rpx"], ["paddingLeft", "30rpx"], ["boxShadow", "0 4rpx 10rpx rgba(0, 0, 0, 0.2)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["transform:active", "translateX(5rpx)"], ["backgroundImage:active", "none"], ["backgroundColor:active", "rgba(255,255,255,0.95)"], ["boxShadow:active", "0 2rpx 5rpx rgba(0, 0, 0, 0.3)"]]))], ["menu-icon", padStyleMapOf(utsMapOf([["width", "40rpx"], ["height", "40rpx"], ["marginRight", "20rpx"], ["transitionProperty", "transform"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"]]))], ["menu-text", padStyleMapOf(utsMapOf([["flex", 1], ["fontSize", "28rpx"], ["color", "#333333"]]))], ["menu-arrow", padStyleMapOf(utsMapOf([["fontSize", "28rpx"], ["color", "#999999"], ["transitionProperty", "transform"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"]]))], ["animate-fade-in", padStyleMapOf(utsMapOf([["animation", "fade-in 0.5s ease-out forwards"]]))], ["animate-slide-down", padStyleMapOf(utsMapOf([["animation", "slide-down 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards"], ["opacity", 0], ["transform", "translateY(-30rpx)"]]))], ["animate-fade-slide", padStyleMapOf(utsMapOf([["animation", "fade-slide 0.5s ease-out forwards"], ["opacity", 0], ["transform", "translateY(20rpx)"], ["animationDelay", calc(0.15s + var(--i) * 0.08s)]]))], ["@FONT-FACE", utsMapOf([["0", utsMapOf([])], ["1", utsMapOf([])], ["2", utsMapOf([])], ["3", utsMapOf([])], ["4", utsMapOf([])], ["5", utsMapOf([])]])], ["@TRANSITION", utsMapOf([["user-avatar", utsMapOf([["duration", "0.3s"], ["timingFunction", "ease"]])], ["menu-item", utsMapOf([["duration", "0.3s"], ["timingFunction", "ease"]])], ["menu-icon", utsMapOf([["property", "transform"], ["duration", "0.3s"], ["timingFunction", "ease"]])], ["menu-arrow", utsMapOf([["property", "transform"], ["duration", "0.3s"], ["timingFunction", "ease"]])]])]])]

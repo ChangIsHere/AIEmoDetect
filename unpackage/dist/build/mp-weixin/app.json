@@ -1,0 +1,44 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/pages2/pages2",
+    "pages/pages3/pages3",
+    "pages/pages4/pages4",
+    "pages/emotion-detect/emotion-detect",
+    "pages/emotion-result/emotion-result",
+    "pages/questionnaire/questionnaire",
+    "pages/breathing-exercise/breathing-exercise",
+    "pages/emotion-diary/emotion-diary"
+  ],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "AI情绪识别",
+    "navigationBarBackgroundColor": "#050410",
+    "backgroundColor": "#050410"
+  },
+  "tabBar": {
+    "color": "#b0b0c0",
+    "selectedColor": "#FFFFFF",
+    "backgroundColor": "#18163a",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "主页"
+      },
+      {
+        "pagePath": "pages/pages2/pages2",
+        "text": "量表生成"
+      },
+      {
+        "pagePath": "pages/pages3/pages3",
+        "text": "心理介入治疗"
+      },
+      {
+        "pagePath": "pages/pages4/pages4",
+        "text": "我的"
+      }
+    ]
+  },
+  "usingComponents": {}
+}

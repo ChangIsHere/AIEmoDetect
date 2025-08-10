@@ -1,0 +1,196 @@
+import { ref, onUnmounted } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
+const __sfc__ = defineComponent({
+    __name: 'breathing-exercise',
+    setup(__props): any | null {
+        const __ins = getCurrentInstance()!;
+        const _ctx = __ins.proxy as InstanceType<typeof __sfc__>;
+        const _cache = __ins.renderCache;
+        const countdown = ref(0);
+        const instruction = ref('点击开始练习按钮');
+        const isRunning = ref(false);
+        const isBreathingIn = ref(false);
+        const isBreathingOut = ref(false);
+        const completedSets = ref(0);
+        const totalSets = ref(6);
+        let timer = null;
+        let interval = null;
+        const breathingPattern = [
+            { action: '吸气', duration: 4 },
+            { action: '呼气', duration: 4 } // 呼气4秒
+        ] as UTSJSONObject[];
+        let currentPatternIndex = 0;
+        onLoad(() => {
+            console.log('Breathing Exercise Page: onLoad triggered.');
+        });
+        function startBreathing() {
+            console.log('startBreathing button clicked');
+            isRunning.value = true;
+            executeBreathingStep();
+        }
+        function stopBreathing() {
+            console.log('stopBreathing button clicked');
+            isRunning.value = false;
+            clearInterval(interval);
+            clearTimeout(timer);
+            countdown.value = 0; // Keep countdown at 0 or last value for display
+            instruction.value = '练习已暂停';
+            isBreathingIn.value = false;
+            isBreathingOut.value = false;
+        }
+        function resetExercise() {
+            console.log('resetExercise button clicked');
+            stopBreathing();
+            completedSets.value = 0;
+            currentPatternIndex = 0;
+            instruction.value = '点击开始练习按钮';
+        }
+        function exitExercise() {
+            console.log('exitExercise button clicked. Attempting to redirect to pages/pages3/pages3');
+            uni.redirectTo({
+                url: '/pages/pages3/pages3'
+            });
+        }
+        function executeBreathingStep() {
+            if (!isRunning.value) {
+                console.log('executeBreathingStep not running');
+                return;
+            }
+            const step = breathingPattern[currentPatternIndex];
+            instruction.value = step["action"];
+            countdown.value = step["duration"];
+            console.log(`Executing step: ${step["action"]}, duration: ${step["duration"]}, countdown: ${countdown.value}`);
+            // 动画控制
+            isBreathingIn.value = (step["action"] === '吸气');
+            isBreathingOut.value = (step["action"] === '呼气');
+            console.log(`isBreathingIn: ${isBreathingIn.value}, isBreathingOut: ${isBreathingOut.value}`);
+            clearInterval(interval);
+            interval = setInterval(() => {
+                countdown.value--;
+                console.log(`Countdown: ${countdown.value}`);
+                if (countdown.value <= 0) {
+                    clearInterval(interval);
+                    // Move to next step or next set
+                    currentPatternIndex++;
+                    if (currentPatternIndex >= breathingPattern.length) {
+                        currentPatternIndex = 0; // Reset for next set
+                        completedSets.value++;
+                        console.log(`Completed sets: ${completedSets.value}`);
+                        if (completedSets.value >= totalSets.value) {
+                            console.log('All sets completed!');
+                            stopBreathing();
+                            instruction.value = '恭喜，所有练习已完成！';
+                            return; // Stop further execution
+                        }
+                    }
+                    timer = setTimeout(executeBreathingStep, 1000); // 间隔1秒后开始下一个步骤
+                }
+            }, 1000);
+        }
+        onUnmounted(() => {
+            console.log('onUnmounted called, stopping breathing');
+            stopBreathing();
+        });
+        return (): any | null => {
+            const _component_uni_icons = resolveComponent("uni-icons");
+            return createElementVNode("view", utsMapOf({ class: "container" }), [
+                createElementVNode("view", utsMapOf({ class: "header" }), [
+                    createElementVNode("text", utsMapOf({ class: "title" }), "呼吸调节练习"),
+                    createElementVNode("text", utsMapOf({ class: "subtitle" }), "跟随节奏，深呼吸")
+                ]),
+                createElementVNode("view", utsMapOf({ class: "breathing-circle-wrapper" }), [
+                    createElementVNode("view", utsMapOf({
+                        class: normalizeClass(['breathing-circle', utsMapOf({ 'breathe-in': isBreathingIn.value, 'breathe-out': isBreathingOut.value })])
+                    }), [
+                        createElementVNode("text", utsMapOf({ class: "timer-text" }), toDisplayString(countdown.value), 1 /* TEXT */)
+                    ], 2 /* CLASS */)
+                ]),
+                createElementVNode("view", utsMapOf({ class: "instruction-text animate-fade-in" }), [
+                    createElementVNode("text", null, toDisplayString(instruction.value), 1 /* TEXT */)
+                ]),
+                isTrue(isRunning.value || completedSets.value > 0)
+                    ? createElementVNode("view", utsMapOf({
+                        key: 0,
+                        class: "progress-container animate-fade-in"
+                    }), [
+                        createElementVNode("text", utsMapOf({ class: "progress-label" }), "已完成: " + toDisplayString(completedSets.value) + " / " + toDisplayString(totalSets.value) + " 组", 1 /* TEXT */),
+                        createElementVNode("view", utsMapOf({ class: "progress-bar-inner" }), [
+                            createElementVNode("view", utsMapOf({
+                                class: "progress-fill",
+                                style: normalizeStyle(utsMapOf({ width: (completedSets.value / totalSets.value) * 100 + '%' }))
+                            }), null, 4 /* STYLE */)
+                        ])
+                    ])
+                    : createCommentVNode("v-if", true),
+                createElementVNode("view", utsMapOf({ class: "control-buttons" }), [
+                    isTrue(!isRunning.value && completedSets.value === 0)
+                        ? createElementVNode("button", utsMapOf({
+                            key: 0,
+                            class: "control-button start-button",
+                            onClick: startBreathing
+                        }), [
+                            createVNode(_component_uni_icons, utsMapOf({
+                                type: "play-filled",
+                                size: "24",
+                                color: "#fff"
+                            })),
+                            createElementVNode("text", null, "开始练习")
+                        ])
+                        : isTrue(isRunning.value)
+                            ? createElementVNode("button", utsMapOf({
+                                key: 1,
+                                class: "control-button stop-button",
+                                onClick: stopBreathing
+                            }), [
+                                createVNode(_component_uni_icons, utsMapOf({
+                                    type: "pause-filled",
+                                    size: "24",
+                                    color: "#fff"
+                                })),
+                                createElementVNode("text", null, "暂停")
+                            ])
+                            : isTrue(completedSets.value > 0 && completedSets.value < totalSets.value)
+                                ? createElementVNode("button", utsMapOf({
+                                    key: 2,
+                                    class: "control-button start-button",
+                                    onClick: startBreathing
+                                }), [
+                                    createVNode(_component_uni_icons, utsMapOf({
+                                        type: "play-filled",
+                                        size: "24",
+                                        color: "#fff"
+                                    })),
+                                    createElementVNode("text", null, "继续练习")
+                                ])
+                                : completedSets.value === totalSets.value
+                                    ? createElementVNode("button", utsMapOf({
+                                        key: 3,
+                                        class: "control-button start-button",
+                                        onClick: resetExercise
+                                    }), [
+                                        createVNode(_component_uni_icons, utsMapOf({
+                                            type: "redo",
+                                            size: "24",
+                                            color: "#fff"
+                                        })),
+                                        createElementVNode("text", null, "重新开始")
+                                    ])
+                                    : createCommentVNode("v-if", true),
+                    createElementVNode("button", utsMapOf({
+                        class: "control-button exit-button",
+                        onClick: exitExercise
+                    }), [
+                        createVNode(_component_uni_icons, utsMapOf({
+                            type: "undo-alt",
+                            size: "24",
+                            color: "#fff"
+                        })),
+                        createElementVNode("text", null, "退出")
+                    ])
+                ])
+            ]);
+        };
+    }
+});
+export default __sfc__;
+const GenPagesBreathingExerciseBreathingExerciseStyles = [utsMapOf([["container", padStyleMapOf(utsMapOf([["backgroundColor", "#03020d"], ["backgroundSize", "4px 4px,\n    400% 400%"], ["animation", "gradient-bg 15s ease infinite"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["paddingTop", "40rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "30rpx"], ["boxSizing", "border-box"], ["position", "relative"], ["overflow", "hidden"], ["content::before", "''"], ["position::before", "absolute"], ["top::before", 0], ["left::before", 0], ["right::before", 0], ["bottom::before", 0], ["animation::before", "pulse-bg 15s ease-in-out infinite alternate"], ["zIndex::before", 0]]))], ["particles", padStyleMapOf(utsMapOf([["position", "absolute"], ["top", 0], ["left", 0], ["width", "100%"], ["height", "100%"], ["overflow", "hidden"], ["zIndex", 2]]))], ["particle", padStyleMapOf(utsMapOf([["position", "absolute"], ["width", "4rpx"], ["height", "4rpx"], ["backgroundColor", "rgba(255,255,255,0.8)"], ["animation", "float-particle 15s linear infinite"], ["boxShadow", "0 0 5rpx rgba(255, 255, 255, 0.8)"]]))], ["header", padStyleMapOf(utsMapOf([["width", "100%"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"], ["marginBottom", "80rpx"], ["display", "flex"], ["flexDirection", "column"], ["justifyContent", "center"], ["alignItems", "center"], ["position", "relative"], ["zIndex", 1]]))], ["title", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "60rpx"], ["fontWeight", "bold"], ["textAlign", "center"], ["textShadow", "0 5rpx 10rpx rgba(0, 0, 0, 0.6)"], ["marginBottom", "20rpx"], ["letterSpacing", "3rpx"]]))], ["subtitle", padStyleMapOf(utsMapOf([["color", "#c0c0c0"], ["fontSize", "36rpx"], ["textAlign", "center"], ["textShadow", "0 1rpx 4rpx rgba(0, 0, 0, 0.4)"]]))], ["breathing-circle-wrapper", padStyleMapOf(utsMapOf([["marginTop", "50rpx"], ["width", "480rpx"], ["height", "480rpx"], ["backgroundColor", "rgba(255,255,255,0.08)"], ["display", "flex"], ["justifyContent", "center"], ["alignItems", "center"], ["boxShadow", "0 0 80rpx rgba(79, 0, 188, 0.7)"], ["position", "relative"], ["zIndex", 1], ["overflow", "hidden"], ["animation", "pulse-wrapper 3s ease-in-out infinite alternate"], ["borderTopWidth", "2rpx"], ["borderRightWidth", "2rpx"], ["borderBottomWidth", "2rpx"], ["borderLeftWidth", "2rpx"], ["borderTopStyle", "solid"], ["borderRightStyle", "solid"], ["borderBottomStyle", "solid"], ["borderLeftStyle", "solid"], ["borderTopColor", "rgba(255,255,255,0.2)"], ["borderRightColor", "rgba(255,255,255,0.2)"], ["borderBottomColor", "rgba(255,255,255,0.2)"], ["borderLeftColor", "rgba(255,255,255,0.2)"]]))], ["breathing-circle", utsMapOf([["", utsMapOf([["width", "380rpx"], ["height", "380rpx"], ["backgroundColor", "rgba(255,255,255,0.2)"], ["display", "flex"], ["justifyContent", "center"], ["alignItems", "center"], ["color", "#FFFFFF"], ["fontSize", "110rpx"], ["fontWeight", "bold"], ["transitionProperty", "backgroundColor"], ["transitionDuration", "0.5s"], ["transitionTimingFunction", "ease"], ["transform", "scale(1)"], ["boxShadow", "inset 0 0 30rpx rgba(0, 0, 0, 0.3)"]])], [".breathe-in", utsMapOf([["animation", "breathe-in-anim 4s forwards"], ["backgroundColor", "rgba(18,194,233,0.7)"], ["boxShadow", "inset 0 0 50rpx rgba(18, 194, 233, 0.5), 0 0 40rpx rgba(18, 194, 233, 0.9)"]])], [".breathe-out", utsMapOf([["animation", "breathe-out-anim 4s forwards"], ["backgroundColor", "rgba(255,99,71,0.7)"], ["boxShadow", "inset 0 0 50rpx rgba(255, 99, 71, 0.5), 0 0 40rpx rgba(255, 99, 71, 0.9)"]])]])], ["timer-text", padStyleMapOf(utsMapOf([["fontSize", "110rpx"], ["fontWeight", "bold"], ["textShadow", "0 3rpx 6rpx rgba(0, 0, 0, 0.5)"]]))], ["instruction-text", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "44rpx"], ["marginTop", "100rpx"], ["textShadow", "0 3rpx 8rpx rgba(0, 0, 0, 0.6)"], ["zIndex", 1], ["textAlign", "center"]]))], ["progress-container", padStyleMapOf(utsMapOf([["width", "80%"], ["maxWidth", "600rpx"], ["marginTop", "50rpx"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["zIndex", 1]]))], ["progress-label", padStyleMapOf(utsMapOf([["color", "#e0e0e0"], ["fontSize", "28rpx"], ["marginBottom", "10rpx"]]))], ["progress-bar-inner", padStyleMapOf(utsMapOf([["width", "100%"], ["height", "20rpx"], ["backgroundColor", "rgba(255,255,255,0.1)"], ["borderTopLeftRadius", "10rpx"], ["borderTopRightRadius", "10rpx"], ["borderBottomRightRadius", "10rpx"], ["borderBottomLeftRadius", "10rpx"], ["overflow", "hidden"]]))], ["progress-fill", padStyleMapOf(utsMapOf([["height", "100%"], ["backgroundColor", "#4CAF50"], ["borderTopLeftRadius", "10rpx"], ["borderTopRightRadius", "10rpx"], ["borderBottomRightRadius", "10rpx"], ["borderBottomLeftRadius", "10rpx"], ["transitionProperty", "width"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease-in-out"]]))], ["control-buttons", padStyleMapOf(utsMapOf([["marginTop", "100rpx"], ["display", "flex"], ["gap", "60rpx"], ["zIndex", 1]]))], ["control-button", utsMapOf([["", utsMapOf([["backgroundImage", "linear-gradient(145deg, #5e00d9, #8c6fe8)"], ["backgroundColor", "rgba(0,0,0,0)"], ["color", "#FFFFFF"], ["paddingTop", "30rpx"], ["paddingRight", "60rpx"], ["paddingBottom", "30rpx"], ["paddingLeft", "60rpx"], ["borderTopLeftRadius", "30rpx"], ["borderTopRightRadius", "30rpx"], ["borderBottomRightRadius", "30rpx"], ["borderBottomLeftRadius", "30rpx"], ["fontSize", "36rpx"], ["display", "flex"], ["alignItems", "center"], ["gap", "20rpx"], ["boxShadow", "0 10rpx 25rpx rgba(0, 0, 0, 0.5), inset 0 0 10rpx rgba(255, 255, 255, 0.2)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"], ["borderTopWidth", "medium"], ["borderRightWidth", "medium"], ["borderBottomWidth", "medium"], ["borderLeftWidth", "medium"], ["borderTopStyle", "none"], ["borderRightStyle", "none"], ["borderBottomStyle", "none"], ["borderLeftStyle", "none"], ["borderTopColor", "#000000"], ["borderRightColor", "#000000"], ["borderBottomColor", "#000000"], ["borderLeftColor", "#000000"], ["outline", "none"], ["cursor", "pointer"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 5rpx 15rpx rgba(0, 0, 0, 0.6), inset 0 0 5rpx rgba(0, 0, 0, 0.3)"], ["opacity:active", 0.9]])], [".stop-button", utsMapOf([["backgroundImage", "linear-gradient(145deg, #ffc107, #ffdd77)"], ["backgroundColor", "rgba(0,0,0,0)"]])], [".exit-button", utsMapOf([["backgroundImage", "linear-gradient(145deg, #a0a0a0, #cccccc)"], ["backgroundColor", "rgba(0,0,0,0)"]])]])], ["animate-fade-in", padStyleMapOf(utsMapOf([["animation", "fade-in 0.8s ease-out forwards"]]))], ["@FONT-FACE", utsMapOf([["0", utsMapOf([])], ["1", utsMapOf([])], ["2", utsMapOf([])], ["3", utsMapOf([])], ["4", utsMapOf([])], ["5", utsMapOf([])], ["6", utsMapOf([])]])], ["@TRANSITION", utsMapOf([["breathing-circle", utsMapOf([["property", "backgroundColor"], ["duration", "0.5s"], ["timingFunction", "ease"]])], ["progress-fill", utsMapOf([["property", "width"], ["duration", "0.3s"], ["timingFunction", "ease-in-out"]])], ["control-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"]])]])]])];

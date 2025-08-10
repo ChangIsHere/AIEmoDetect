@@ -1,0 +1,308 @@
+const __sfc__ = defineComponent({
+    data() {
+        return {
+            rawResults: null,
+            scaleTypeTitle: '',
+            showAnalysisContent: false,
+            loading: false,
+            mainEmotion: 'neutral',
+            emotionLabel: '平静',
+            emotionScore: 65,
+            scoreColor: '#6847c2',
+            analysisText: '点击“生成分析结果”按钮获取报告。',
+            suggestions: []
+        };
+    },
+    onLoad(options) {
+        // 通过EventChannel接收数据
+        const eventChannel = this.getOpenerEventChannel();
+        eventChannel.on('acceptResultDataFromOpenerPage', (data) => {
+            console.log('从问卷页面接收到结果:', data.data);
+            this.rawResults = data.data;
+            // 设置量表类型标题
+            if (this.rawResults.scaleType === 'DASS21') {
+                this.scaleTypeTitle = 'DASS-21';
+            }
+            else if (this.rawResults.scaleType === 'PHQ9') {
+                this.scaleTypeTitle = 'PHQ-9';
+            }
+        });
+    },
+    methods: {
+        goBack() {
+            uni.navigateBack();
+        },
+        // 新增：生成分析结果的方法
+        generateAnalysis() {
+            if (this.loading)
+                return;
+            this.loading = true;
+            uni.showLoading({ title: '正在生成分析报告...', mask: true });
+            // 模拟后端处理时间
+            setTimeout(() => {
+                uni.hideLoading();
+                this.loading = false;
+                this.showAnalysisContent = true; // 显示分析内容
+                this.processAnalysisData(); // 处理并显示模拟数据
+            }, 2000); // 模拟2秒加载时间
+        },
+        // 处理分析数据 (现在从rawResults中获取)
+        processAnalysisData() {
+            // 如果rawResults为空，则生成备用数据
+            if (!this.rawResults) {
+                console.warn('未接收到量表结果，生成备用数据。');
+                this.generateFallbackData();
+                return;
+            }
+            // 模拟根据量表结果生成分析文本和建议
+            const scaleType = this.rawResults.scaleType;
+            const totalScore = this.rawResults.totalScore;
+            let analysisSummary = `您完成了${scaleType}量表，总分为${totalScore}分。\n\n`;
+            let dominantEmotion = 'neutral';
+            let score = 65;
+            let label = '平静';
+            let color = '#6847c2';
+            let generatedSuggestions = [
+                '根据您的回答，建议您关注情绪健康，保持积极心态。',
+                '尝试与信任的人分享您的感受，寻求支持。'
+            ];
+            if (scaleType === 'DASS21') {
+                // 简化DASS21的评估，真实情况需要更复杂的逻辑
+                if (totalScore >= 30) {
+                    dominantEmotion = 'anxious';
+                    score = 20;
+                    label = '严重焦虑/抑郁/压力';
+                    color = '#FF4500';
+                    analysisSummary += '您的情绪可能处于较高压力状态，建议寻求专业帮助。\n';
+                    generatedSuggestions = [
+                        '强烈建议寻求专业心理咨询和评估。',
+                        '学习压力管理技巧，如冥想、放松练习。',
+                        '确保充足的休息和规律的作息。',
+                    ];
+                }
+                else if (totalScore >= 15) {
+                    dominantEmotion = 'sad';
+                    score = 40;
+                    label = '中度焦虑/抑郁/压力';
+                    color = '#FFD700';
+                    analysisSummary += '您的情绪可能存在一定程度的波动，建议保持关注。\n';
+                    generatedSuggestions = [
+                        '尝试与亲友交流，分享您的感受。',
+                        '进行适度的体育锻炼，有助于改善情绪。',
+                        '保持健康的生活习惯，充足睡眠和均衡饮食。',
+                    ];
+                }
+                else {
+                    dominantEmotion = 'happy';
+                    score = 80;
+                    label = '情绪良好';
+                    color = '#32CD32';
+                    analysisSummary += '您目前情绪状态良好，请继续保持。\n';
+                    generatedSuggestions = [
+                        '继续保持积极乐观的心态。',
+                        '可以将您的好心情分享给身边的人。',
+                        '保持健康的生活习惯，享受生活。',
+                    ];
+                }
+            }
+            else if (scaleType === 'PHQ9') {
+                // 简化PHQ-9的评估，真实情况需要更复杂的逻辑
+                if (totalScore >= 15) {
+                    dominantEmotion = 'sad';
+                    score = 25;
+                    label = '中度至重度抑郁';
+                    color = '#DC143C';
+                    analysisSummary += '您的抑郁症状可能较明显，建议及时寻求专业帮助。\n';
+                    generatedSuggestions = [
+                        '强烈建议咨询心理健康专业人士，进行进一步评估和干预。',
+                        '避免孤立，尝试与支持您的朋友或家人保持联系。',
+                        '培养一些兴趣爱好，分散注意力，缓解负面情绪。',
+                    ];
+                }
+                else if (totalScore >= 5) {
+                    dominantEmotion = 'anxious';
+                    score = 50;
+                    label = '轻度抑郁';
+                    color = '#FF8C00';
+                    analysisSummary += '您可能存在轻度抑郁症状，建议您保持关注和自我调节。\n';
+                    generatedSuggestions = [
+                        '尝试调整作息，保证充足的睡眠。',
+                        '进行规律的户外活动，如散步、跑步，接触自然。',
+                        '学习情绪管理技巧，如冥想、放松训练。',
+                    ];
+                }
+                else {
+                    dominantEmotion = 'happy';
+                    score = 90;
+                    label = '无抑郁症状';
+                    color = '#008000';
+                    analysisSummary += '您没有明显的抑郁症状，情绪状态良好。\n';
+                    generatedSuggestions = [
+                        '继续保持积极健康的生活方式。',
+                        '定期进行心理健康自查，关注情绪变化。',
+                    ];
+                }
+            }
+            this.mainEmotion = dominantEmotion;
+            this.emotionLabel = label;
+            this.emotionScore = score;
+            this.scoreColor = color;
+            this.analysisText = analysisSummary + '\n\n以下是您的详细答案：\n' + JSON.stringify(this.rawResults.answers, null, 2);
+            this.suggestions = generatedSuggestions;
+        },
+        // 生成备用数据（当没有接收到真实数据时）
+        generateFallbackData() {
+            this.scaleTypeTitle = '未知量表';
+            this.mainEmotion = 'neutral';
+            this.emotionLabel = '平静';
+            this.emotionScore = 60;
+            this.scoreColor = '#808080';
+            this.analysisText = '未能加载具体的分析结果。请确保已完成量表测评。\n\n如果问题持续存在，请联系技术支持。';
+            this.suggestions = [
+                '请返回量表页面完成测评。',
+                '如果您已完成测评，请尝试刷新页面。'
+            ];
+        },
+        shareResult() {
+            uni.showToast({
+                title: '分享功能开发中',
+                icon: 'none'
+            });
+        },
+        findProfessional() {
+            uni.showToast({
+                title: '预约功能开发中',
+                icon: 'none'
+            });
+        }
+    }
+});
+export default __sfc__;
+function GenPagesEmotionResultEmotionResultRender(this: InstanceType<typeof __sfc__>): any | null {
+    const _ctx = this;
+    const _cache = this.$.renderCache;
+    return createElementVNode("view", utsMapOf({ class: "container" }), [
+        createElementVNode("view", utsMapOf({
+            class: "back-button animate-fade-in",
+            onClick: _ctx.goBack
+        }), [
+            createElementVNode("text", utsMapOf({ class: "back-icon" }), "←"),
+            createElementVNode("text", utsMapOf({ class: "back-text" }), "返回")
+        ], 8 /* PROPS */, ["onClick"]),
+        createElementVNode("view", utsMapOf({ class: "header animate-fade-in" }), [
+            createElementVNode("text", utsMapOf({ class: "title" }), toDisplayString(_ctx.scaleTypeTitle) + "分析结果", 1 /* TEXT */)
+        ]),
+        isTrue(!_ctx.showAnalysisContent)
+            ? createElementVNode("view", utsMapOf({
+                key: 0,
+                class: "initial-state animate-fade-in"
+            }), [
+                createElementVNode("text", utsMapOf({ class: "initial-text" }), "点击下方按钮生成您的专属分析结果"),
+                createElementVNode("button", utsMapOf({
+                    class: "generate-button animate-bounce-in",
+                    disabled: _ctx.loading,
+                    onClick: _ctx.generateAnalysis
+                }), toDisplayString(_ctx.loading ? '生成中...' : '生成分析结果'), 9 /* TEXT, PROPS */, ["disabled", "onClick"]),
+                createElementVNode("view", utsMapOf({ class: "privacy-note animate-fade-in" }), [
+                    createElementVNode("text", utsMapOf({ class: "privacy-icon" }), "🔒"),
+                    createElementVNode("text", utsMapOf({ class: "privacy-text" }), "数据已加密保存，请放心生成")
+                ])
+            ])
+            : createElementVNode("view", utsMapOf({
+                key: 1,
+                class: "main-content animate-fade-in"
+            }), [
+                createElementVNode("view", utsMapOf({
+                    class: "result-summary animate-slide-in",
+                    style: normalizeStyle(utsMapOf({ "--i": "0" }))
+                }), [
+                    createElementVNode("view", utsMapOf({
+                        class: normalizeClass(["emotion-icon", _ctx.mainEmotion])
+                    }), [
+                        _ctx.mainEmotion === 'happy'
+                            ? createElementVNode("text", utsMapOf({
+                                key: 0,
+                                class: "emoji"
+                            }), "😊")
+                            : _ctx.mainEmotion === 'sad'
+                                ? createElementVNode("text", utsMapOf({
+                                    key: 1,
+                                    class: "emoji"
+                                }), "😢")
+                                : _ctx.mainEmotion === 'angry'
+                                    ? createElementVNode("text", utsMapOf({
+                                        key: 2,
+                                        class: "emoji"
+                                    }), "😠")
+                                    : _ctx.mainEmotion === 'anxious'
+                                        ? createElementVNode("text", utsMapOf({
+                                            key: 3,
+                                            class: "emoji"
+                                        }), "😰")
+                                        : createElementVNode("text", utsMapOf({
+                                            key: 4,
+                                            class: "emoji"
+                                        }), "😐")
+                    ], 2 /* CLASS */),
+                    createElementVNode("text", utsMapOf({ class: "emotion-label" }), toDisplayString(_ctx.emotionLabel), 1 /* TEXT */)
+                ], 4 /* STYLE */),
+                createElementVNode("view", utsMapOf({
+                    class: "score-card animate-slide-in",
+                    style: normalizeStyle(utsMapOf({ "--i": "1" }))
+                }), [
+                    createElementVNode("text", utsMapOf({ class: "score-title" }), "情绪健康评分"),
+                    createElementVNode("view", utsMapOf({ class: "score-container" }), [
+                        createElementVNode("view", utsMapOf({ class: "score-number" }), toDisplayString(_ctx.emotionScore), 1 /* TEXT */),
+                        createElementVNode("view", utsMapOf({ class: "score-bar" }), [
+                            createElementVNode("view", utsMapOf({
+                                class: "score-progress",
+                                style: normalizeStyle(utsMapOf({ width: _ctx.emotionScore + '%', backgroundColor: _ctx.scoreColor }))
+                            }), null, 4 /* STYLE */)
+                        ])
+                    ]),
+                    createElementVNode("view", utsMapOf({ class: "score-labels" }), [
+                        createElementVNode("text", utsMapOf({ class: "low-label" }), "低"),
+                        createElementVNode("text", utsMapOf({ class: "mid-label" }), "中"),
+                        createElementVNode("text", utsMapOf({ class: "high-label" }), "高")
+                    ])
+                ], 4 /* STYLE */),
+                createElementVNode("view", utsMapOf({
+                    class: "details-card animate-slide-in",
+                    style: normalizeStyle(utsMapOf({ "--i": "2" }))
+                }), [
+                    createElementVNode("text", utsMapOf({ class: "details-title" }), "情绪详细分析"),
+                    createElementVNode("text", utsMapOf({ class: "details-text" }), toDisplayString(_ctx.analysisText), 1 /* TEXT */)
+                ], 4 /* STYLE */),
+                createElementVNode("view", utsMapOf({
+                    class: "suggestion-card animate-slide-in",
+                    style: normalizeStyle(utsMapOf({ "--i": "3" }))
+                }), [
+                    createElementVNode("text", utsMapOf({ class: "suggestion-title" }), "建议"),
+                    createElementVNode(Fragment, null, RenderHelpers.renderList(_ctx.suggestions, (item, index, __index, _cached): any => {
+                        return createElementVNode("view", utsMapOf({
+                            key: index,
+                            class: "suggestion-item"
+                        }), [
+                            createElementVNode("text", utsMapOf({ class: "suggestion-number" }), toDisplayString(index + 1), 1 /* TEXT */),
+                            createElementVNode("text", utsMapOf({ class: "suggestion-text" }), toDisplayString(item), 1 /* TEXT */)
+                        ]);
+                    }), 128 /* KEYED_FRAGMENT */)
+                ], 4 /* STYLE */),
+                createElementVNode("view", utsMapOf({ class: "bottom-buttons animate-fade-in" }), [
+                    createElementVNode("view", utsMapOf({
+                        class: "button secondary-button",
+                        onClick: _ctx.shareResult
+                    }), "分享结果", 8 /* PROPS */, ["onClick"]),
+                    createElementVNode("view", utsMapOf({
+                        class: "button primary-button",
+                        onClick: _ctx.findProfessional
+                    }), "预约专家", 8 /* PROPS */, ["onClick"])
+                ])
+            ])
+    ]);
+}
+const GenPagesEmotionResultEmotionResultStyles = [utsMapOf([["container", padStyleMapOf(utsMapOf([["backgroundColor", "#050410"], ["backgroundSize", "4px 4px,\n\t\t400% 400%"], ["animation", "gradient-bg 8s ease infinite"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["paddingTop", "40rpx"], ["paddingRight", "30rpx"], ["paddingBottom", "100rpx"], ["paddingLeft", "30rpx"], ["boxSizing", "border-box"], ["position", "relative"], ["overflowY", "auto"], ["content::before", "''"], ["position::before", "absolute"], ["top::before", 0], ["left::before", 0], ["right::before", 0], ["bottom::before", 0], ["animation::before", "pulse-bg 15s ease-in-out infinite alternate"], ["zIndex::before", 0]]))], ["back-button", padStyleMapOf(utsMapOf([["position", "absolute"], ["top", "60rpx"], ["left", "30rpx"], ["display", "flex"], ["alignItems", "center"], ["color", "#FFFFFF"], ["fontSize", "30rpx"], ["zIndex", 10], ["backgroundImage", "none"], ["backgroundColor", "rgba(255,255,255,0.1)"], ["paddingTop", "10rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "10rpx"], ["paddingLeft", "20rpx"], ["borderTopLeftRadius", "20rpx"], ["borderTopRightRadius", "20rpx"], ["borderBottomRightRadius", "20rpx"], ["borderBottomLeftRadius", "20rpx"], ["backdropFilter", "blur(5rpx)"], ["WebkitBackdropFilter", "blur(5rpx)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["boxShadow", "0 2rpx 10rpx rgba(0, 0, 0, 0.2)"], ["transform:active", "scale(0.95)"], ["opacity:active", 0.8], ["boxShadow:active", "0 1rpx 5rpx rgba(0, 0, 0, 0.3)"]]))], ["back-icon", padStyleMapOf(utsMapOf([["fontSize", "40rpx"], ["marginRight", "10rpx"]]))], ["back-text", padStyleMapOf(utsMapOf([["fontSize", "30rpx"]]))], ["header", padStyleMapOf(utsMapOf([["width", "100%"], ["paddingTop", "20rpx"], ["paddingRight", "20rpx"], ["paddingBottom", "20rpx"], ["paddingLeft", "20rpx"], ["marginBottom", "40rpx"], ["display", "flex"], ["justifyContent", "center"], ["position", "relative"], ["zIndex", 1]]))], ["title", padStyleMapOf(utsMapOf([["color", "#FFFFFF"], ["fontSize", "36rpx"], ["textAlign", "center"], ["textShadow", "0 2rpx 4rpx rgba(0, 0, 0, 0.3)"]]))], ["initial-state", padStyleMapOf(utsMapOf([["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["justifyContent", "center"], ["width", "90%"], ["maxWidth", "600rpx"], ["backgroundImage", "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))"], ["backgroundColor", "rgba(0,0,0,0)"], ["borderTopLeftRadius", "30rpx"], ["borderTopRightRadius", "30rpx"], ["borderBottomRightRadius", "30rpx"], ["borderBottomLeftRadius", "30rpx"], ["paddingTop", "60rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "60rpx"], ["paddingLeft", "40rpx"], ["boxShadow", "0 10rpx 40rpx rgba(0, 0, 0, 0.5)"], ["textAlign", "center"], ["marginTop", "100rpx"], ["backdropFilter", "blur(10rpx)"], ["WebkitBackdropFilter", "blur(10rpx)"], ["borderTopWidth", "1rpx"], ["borderRightWidth", "1rpx"], ["borderBottomWidth", "1rpx"], ["borderLeftWidth", "1rpx"], ["borderTopStyle", "solid"], ["borderRightStyle", "solid"], ["borderBottomStyle", "solid"], ["borderLeftStyle", "solid"], ["borderTopColor", "rgba(255,255,255,0.2)"], ["borderRightColor", "rgba(255,255,255,0.2)"], ["borderBottomColor", "rgba(255,255,255,0.2)"], ["borderLeftColor", "rgba(255,255,255,0.2)"]]))], ["initial-text", padStyleMapOf(utsMapOf([["fontSize", "36rpx"], ["color", "#ffffff"], ["marginBottom", "60rpx"], ["textShadow", "0 2rpx 5rpx rgba(0, 0, 0, 0.3)"]]))], ["generate-button", padStyleMapOf(utsMapOf([["backgroundImage", "linear-gradient(90deg, #6b5b95, #4f00bc)"], ["backgroundColor", "rgba(0,0,0,0)"], ["color", "#FFFFFF"], ["paddingTop", "30rpx"], ["paddingRight", "60rpx"], ["paddingBottom", "30rpx"], ["paddingLeft", "60rpx"], ["borderTopLeftRadius", "20rpx"], ["borderTopRightRadius", "20rpx"], ["borderBottomRightRadius", "20rpx"], ["borderBottomLeftRadius", "20rpx"], ["fontSize", "36rpx"], ["fontWeight", "bold"], ["boxShadow", "0 8rpx 20rpx rgba(0, 0, 0, 0.4)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"], ["borderTopWidth", "medium"], ["borderRightWidth", "medium"], ["borderBottomWidth", "medium"], ["borderLeftWidth", "medium"], ["borderTopStyle", "none"], ["borderRightStyle", "none"], ["borderBottomStyle", "none"], ["borderLeftStyle", "none"], ["borderTopColor", "#000000"], ["borderRightColor", "#000000"], ["borderBottomColor", "#000000"], ["borderLeftColor", "#000000"], ["outline", "none"], ["position", "relative"], ["overflow", "hidden"], ["content::before", "''"], ["position::before", "absolute"], ["top::before", 0], ["left::before", "-100%"], ["width::before", "100%"], ["height::before", "100%"], ["backgroundImage::before", "none"], ["backgroundColor::before", "rgba(255,255,255,0.2)"], ["transform::before", "skewX(-20deg)"], ["transitionDuration::before", "0.7s"], ["left:hover::before", "100%"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 4rpx 10rpx rgba(0, 0, 0, 0.5)"], ["opacity:active", 0.9], ["backgroundImage:disabled", "none"], ["backgroundColor:disabled", "#888888"], ["cursor:disabled", "not-allowed"], ["boxShadow:disabled", "none"], ["transform:disabled", "scale(1)"], ["opacity:disabled", 0.7]]))], ["privacy-note", padStyleMapOf(utsMapOf([["display", "flex"], ["alignItems", "center"], ["marginTop", "50rpx"], ["color", "#cccccc"], ["fontSize", "26rpx"]]))], ["privacy-icon", padStyleMapOf(utsMapOf([["marginRight", "10rpx"]]))], ["main-content", padStyleMapOf(utsMapOf([["width", "100%"], ["flex", 1], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["position", "relative"], ["zIndex", 1], ["gap", "30rpx"]]))], ["result-summary", padStyleMapOf(utsMapOf([["width", "92%"], ["maxWidth", "650rpx"], ["backgroundImage", "linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98))"], ["backgroundColor", "rgba(0,0,0,0)"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["boxShadow", "0 10rpx 30rpx rgba(0, 0, 0, 0.4)"], ["textAlign", "center"], ["position", "relative"], ["zIndex", 1]]))], ["score-card", padStyleMapOf(utsMapOf([["width", "92%"], ["maxWidth", "650rpx"], ["backgroundImage", "linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98))"], ["backgroundColor", "rgba(0,0,0,0)"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["boxShadow", "0 10rpx 30rpx rgba(0, 0, 0, 0.4)"], ["textAlign", "center"], ["position", "relative"], ["zIndex", 1]]))], ["details-card", padStyleMapOf(utsMapOf([["width", "92%"], ["maxWidth", "650rpx"], ["backgroundImage", "linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98))"], ["backgroundColor", "rgba(0,0,0,0)"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["boxShadow", "0 10rpx 30rpx rgba(0, 0, 0, 0.4)"], ["textAlign", "center"], ["position", "relative"], ["zIndex", 1]]))], ["suggestion-card", padStyleMapOf(utsMapOf([["width", "92%"], ["maxWidth", "650rpx"], ["backgroundImage", "linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98))"], ["backgroundColor", "rgba(0,0,0,0)"], ["borderTopLeftRadius", "25rpx"], ["borderTopRightRadius", "25rpx"], ["borderBottomRightRadius", "25rpx"], ["borderBottomLeftRadius", "25rpx"], ["paddingTop", "40rpx"], ["paddingRight", "40rpx"], ["paddingBottom", "40rpx"], ["paddingLeft", "40rpx"], ["boxShadow", "0 10rpx 30rpx rgba(0, 0, 0, 0.4)"], ["textAlign", "center"], ["position", "relative"], ["zIndex", 1]]))], ["emotion-icon", padStyleMapOf(utsMapOf([["fontSize", "100rpx"], ["marginBottom", "20rpx"], ["animation", "bounce-in 0.8s ease-out"]]))], ["emotion-label", padStyleMapOf(utsMapOf([["fontSize", "40rpx"], ["fontWeight", "bold"], ["color", "#333333"], ["textShadow", "0 2rpx 5rpx rgba(0, 0, 0, 0.1)"]]))], ["score-title", padStyleMapOf(utsMapOf([["fontSize", "34rpx"], ["fontWeight", "bold"], ["color", "#333333"], ["marginBottom", "20rpx"], ["paddingBottom", "10rpx"], ["borderBottomWidth", "1rpx"], ["borderBottomStyle", "solid"], ["borderBottomColor", "#eeeeee"]]))], ["details-title", padStyleMapOf(utsMapOf([["fontSize", "34rpx"], ["fontWeight", "bold"], ["color", "#333333"], ["marginBottom", "20rpx"], ["paddingBottom", "10rpx"], ["borderBottomWidth", "1rpx"], ["borderBottomStyle", "solid"], ["borderBottomColor", "#eeeeee"]]))], ["suggestion-title", padStyleMapOf(utsMapOf([["fontSize", "34rpx"], ["fontWeight", "bold"], ["color", "#333333"], ["marginBottom", "20rpx"], ["paddingBottom", "10rpx"], ["borderBottomWidth", "1rpx"], ["borderBottomStyle", "solid"], ["borderBottomColor", "#eeeeee"]]))], ["score-container", padStyleMapOf(utsMapOf([["display", "flex"], ["flexDirection", "column"], ["alignItems", "center"], ["marginBottom", "20rpx"]]))], ["score-number", padStyleMapOf(utsMapOf([["fontSize", "80rpx"], ["fontWeight", "bold"], ["color", "#4f00bc"], ["marginBottom", "10rpx"], ["textShadow", "0 4rpx 10rpx rgba(0, 0, 0, 0.2)"]]))], ["score-bar", padStyleMapOf(utsMapOf([["width", "100%"], ["height", "20rpx"], ["backgroundColor", "#eeeeee"], ["borderTopLeftRadius", "10rpx"], ["borderTopRightRadius", "10rpx"], ["borderBottomRightRadius", "10rpx"], ["borderBottomLeftRadius", "10rpx"], ["overflow", "hidden"]]))], ["score-progress", padStyleMapOf(utsMapOf([["height", "100%"], ["borderTopLeftRadius", "10rpx"], ["borderTopRightRadius", "10rpx"], ["borderBottomRightRadius", "10rpx"], ["borderBottomLeftRadius", "10rpx"], ["transitionProperty", "width"], ["transitionDuration", "1s"], ["transitionTimingFunction", "ease-out"], ["animation", "progress-fill 1s ease-out"]]))], ["score-labels", padStyleMapOf(utsMapOf([["display", "flex"], ["justifyContent", "space-between"], ["width", "100%"], ["fontSize", "24rpx"], ["color", "#666666"], ["marginTop", "5rpx"]]))], ["details-text", padStyleMapOf(utsMapOf([["fontSize", "28rpx"], ["color", "#555555"], ["lineHeight", 1.6], ["textAlign", "left"]]))], ["suggestion-item", padStyleMapOf(utsMapOf([["display", "flex"], ["alignItems", "flex-start"], ["marginBottom", "15rpx"], ["textAlign", "left"]]))], ["suggestion-number", padStyleMapOf(utsMapOf([["backgroundColor", "#6b5b95"], ["color", "#FFFFFF"], ["width", "40rpx"], ["height", "40rpx"], ["display", "flex"], ["justifyContent", "center"], ["alignItems", "center"], ["fontSize", "24rpx"], ["fontWeight", "bold"], ["marginRight", "15rpx"], ["flexShrink", 0]]))], ["suggestion-text", padStyleMapOf(utsMapOf([["fontSize", "28rpx"], ["color", "#555555"], ["lineHeight", 1.6], ["flex", 1]]))], ["bottom-buttons", padStyleMapOf(utsMapOf([["display", "flex"], ["justifyContent", "space-around"], ["width", "92%"], ["maxWidth", "650rpx"], ["marginTop", "40rpx"], ["marginBottom", "60rpx"], ["gap", "20rpx"]]))], ["button", padStyleMapOf(utsMapOf([["flex", 1], ["paddingTop", "25rpx"], ["paddingRight", 0], ["paddingBottom", "25rpx"], ["paddingLeft", 0], ["borderTopLeftRadius", "15rpx"], ["borderTopRightRadius", "15rpx"], ["borderBottomRightRadius", "15rpx"], ["borderBottomLeftRadius", "15rpx"], ["fontSize", "32rpx"], ["fontWeight", "bold"], ["textAlign", "center"], ["boxShadow", "0 5rpx 15rpx rgba(0, 0, 0, 0.3)"], ["transitionDuration", "0.3s"], ["transitionTimingFunction", "ease"], ["transform:active", "scale(0.95)"], ["boxShadow:active", "0 2rpx 8rpx rgba(0, 0, 0, 0.4)"], ["opacity:active", 0.9]]))], ["primary-button", padStyleMapOf(utsMapOf([["backgroundImage", "linear-gradient(90deg, #4f00bc, #7d1b7e)"], ["backgroundColor", "rgba(0,0,0,0)"], ["color", "#FFFFFF"]]))], ["secondary-button", padStyleMapOf(utsMapOf([["backgroundImage", "linear-gradient(90deg, #888, #666)"], ["backgroundColor", "rgba(0,0,0,0)"], ["color", "#FFFFFF"]]))], ["animate-fade-in", padStyleMapOf(utsMapOf([["animation", "fade-in 0.6s ease-out forwards"]]))], ["animate-slide-in", padStyleMapOf(utsMapOf([["animation", "slide-in 0.6s ease-out forwards"], ["animationDelay", calc()]]))]])];
+var ;
+(--i) * 0.1;
+s;
+["animate-bounce-in", padStyleMapOf(utsMapOf([["animation", "bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards"]]))], ["@FONT-FACE", utsMapOf([["0", utsMapOf([])], ["1", utsMapOf([])], ["2", utsMapOf([])], ["3", utsMapOf([])], ["4", utsMapOf([])], ["5", utsMapOf([])]])], ["@TRANSITION", utsMapOf([["back-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "ease"]])], ["generate-button", utsMapOf([["duration", "0.3s"], ["timingFunction", "cubic-bezier(0.175,0.885,0.32,1.275)"], ["duration::before", "0.7s"]])], ["score-progress", utsMapOf([["property", "width"], ["duration", "1s"], ["timingFunction", "ease-out"]])], ["button", utsMapOf([["duration", "0.3s"], ["timingFunction", "ease"]])]])];

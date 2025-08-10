@@ -1,0 +1,96 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "主页"
+      }
+    },
+    {
+      "path": "pages/pages2/pages2",
+      "style": {
+        "navigationBarTitleText": "量表生成"
+      }
+    },
+    {
+      "path": "pages/pages3/pages3",
+      "style": {
+        "navigationBarTitleText": "心理介入治疗"
+      }
+    },
+    {
+      "path": "pages/pages4/pages4",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/emotion-detect/emotion-detect",
+      "style": {
+        "navigationBarTitleText": "AI情绪检测",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/emotion-result/emotion-result",
+      "style": {
+        "navigationBarTitleText": "情绪分析结果",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/questionnaire/questionnaire",
+      "style": {
+        "navigationBarTitleText": "量表问卷",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/breathing-exercise/breathing-exercise",
+      "style": {
+        "navigationBarTitleText": "呼吸调节 (测试)",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/emotion-diary/emotion-diary",
+      "style": {
+        "navigationBarTitleText": "情绪日记",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "AI情绪识别",
+    "navigationBarBackgroundColor": "#050410",
+    "backgroundColor": "#050410",
+    "app-plus": {
+      "titleNView": false
+    }
+  },
+  "tabBar": {
+    "color": "#b0b0c0",
+    "selectedColor": "#FFFFFF",
+    "backgroundColor": "#18163a",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "主页"
+      },
+      {
+        "pagePath": "pages/pages2/pages2",
+        "text": "量表生成"
+      },
+      {
+        "pagePath": "pages/pages3/pages3",
+        "text": "心理介入治疗"
+      },
+      {
+        "pagePath": "pages/pages4/pages4",
+        "text": "我的"
+      }
+    ]
+  }
+}
